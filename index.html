@@ -522,7 +522,7 @@
     let citrixCycleStationsQuery = `${citrixCycleStations}/query?${citrixQueryParams}`;
     let greenwayDetourQuery = 'https://gist.githubusercontent.com/jonathonwpowell/51172dccc17cf8a832ff6566e700c2d8/raw/map.geojson';
     let umsteadQuery = `${umsteadURL}/query?${queryParams}`;
-    let durhamSolidQuery = `${durhamURL}/query?${durhamSolidQueryParams}`;
+    let durhamSolidQuery = 'data/osm_durham.geojson';
     let durhamDashedQuery = `${durhamURL}/query?${durhamDashedQueryParams}`;
     let mingoGreenwayQuery = `${mingoGreenwayURL}/query?${mingoGreenwayQueryParams}`;
     let smithCreekGreenwayQuery = `${smithCreekGreenwayURL}/query?${queryParams}`;
@@ -829,12 +829,23 @@
             'paint': {
                 'line-color': colors.EXISTING,
                 'line-width': 1.5,
-                'line-opacity': [
-                    'match',
-                    ['get', 'Bike_Facil'],
-                    'Multiuse Path', 0,
-                    1
-                ],
+                'line-opacity': ['case',
+                    ['any',
+                        ['match',
+                        ['get', 'cycleway'],
+                        'lane', true, false], 
+                        ['match',
+                        ['get', 'cycleway:left'],
+                        'lane', true, false],
+                        ['match',
+                        ['get', 'cycleway:right'],
+                        'lane', true, false],
+                        ['match',
+                        ['get', 'cycleway'],
+                        'track', true, false]
+                    ],
+                    1,
+                    0]
             }
         });
 
@@ -846,10 +857,16 @@
             'paint': {
                 'line-color': colors.GREENWAY,
                 'line-width': 1.5,
-                'line-opacity': [
-                    'match',
-                    ['get', 'Bike_Facil'],
-                    'Multiuse Path', 1,
+                'line-opacity': ['case',
+                    ['any',
+                        ['match',
+                        ['get', 'highway'],
+                        'cycleway', true, false], 
+                        ['match',
+                        ['get', 'bicycle'],
+                        'designated', true, false],
+                    ],
+                    1,
                     0
                 ],
             }
