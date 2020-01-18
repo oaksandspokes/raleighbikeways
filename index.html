@@ -377,13 +377,29 @@
         ]
     }];
 
+    var lastCameraLng = getCookie("lastCameraLng");
+    var lastCameraLat = getCookie("lastCameraLat");
+    var lastZoom = getCookie("lastZoom") || 12;
+    if(!lastCameraLng || !lastCameraLat) {
+        lastCameraLng = "-78.638176";
+        lastCameraLat = "35.779591"
+        setCookie("lastCameraLng",lastCameraLng,1000);
+        setCookie("lastCameraLat",lastCameraLat,1000);
+    }
 
     let map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/peterboyer/cjr49i1ql0mza2srxxtgqlpqw',
-        center: [-78.638176, 35.779591],
-        zoom: 12
+        center: [lastCameraLng, lastCameraLat],
+        zoom: lastZoom
     });
+
+    map.on('idle',() => {
+        var mapCenter = map.getCenter();
+        setCookie("lastCameraLng",mapCenter.lng,1000);
+        setCookie("lastCameraLat",mapCenter.lat,1000);
+        setCookie("lastZoom",map.getZoom(),1000);
+    })
 
     map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
