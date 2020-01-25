@@ -15,13 +15,14 @@
         type="text/css" />
 
     <!-- Flavicon Metadata -->
-    <link rel="apple-touch-icon" sizes="76x76" href="apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <link rel="manifest" href="site.webmanifest">
-    <link rel="mask-icon" href="safari-pinned-tab.svg" color="#5bbad5">
-    <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=xQOgA4Byaj">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=xQOgA4Byaj">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=xQOgA4Byaj">
+    <link rel="manifest" href="/site.webmanifest?v=xQOgA4Byaj">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg?v=xQOgA4Byaj" color="#0b6623">
+    <link rel="shortcut icon" href="/favicon.ico?v=xQOgA4Byaj">
+    <meta name="msapplication-TileColor" content="#343323">
+    <meta name="theme-color" content="#343323">
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-142487885-3"></script>
@@ -69,8 +70,8 @@
             <table>
                 <tr>
                     <td>
-                        <input id="greenway-checkbox" type="checkbox" class="legend-checkbox" onchange="legendToggleGreenwayLayer(this.checked);"
-                            checked>Greenways<br>
+                        <input id="greenway-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleGreenwayLayer(this.checked);" checked>Greenways<br>
                     </td>
                     <td>
                         <svg height="10" width="100" class="greenway-legend">
@@ -91,8 +92,8 @@
                 </tr>
                 <tr>
                     <td>
-                        <input id="greenway-dashed-checkbox" type="checkbox" class="legend-checkbox" onchange="legendToggleGreenwayDashedLayer(this.checked);"
-                            checked>Marginal Greenways
+                        <input id="greenway-dashed-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleGreenwayDashedLayer(this.checked);" checked>Marginal Greenways
                         <i class="material-icons md-18 noselect"
                             onclick="document.getElementById('marginal-greenway-info-container').style.display='block'">info</i>
                     </td>
@@ -106,7 +107,7 @@
                 </tr>
                 <tr>
                     <td>
-                        <input id="greenway-detour-checkbox" type="checkbox" class="legend-checkbox" 
+                        <input id="greenway-detour-checkbox" type="checkbox" class="legend-checkbox"
                             onchange="legendToggleGreenwayDetourLayer(this.checked)" checked />Greenway Detours
                         <i class="material-icons md-18 noselect"
                             onclick="document.getElementById('greenway-detour-info-container').style.display='block'">info</i>
@@ -121,8 +122,8 @@
                 </tr>
                 <tr>
                     <td>
-                        <input id="facilities-checkbox" type="checkbox" class="legend-checkbox" onchange="legendToggleFacilitiesLayer(this.checked);"
-                            checked>Bike lanes / Sidepaths
+                        <input id="facilities-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleFacilitiesLayer(this.checked);" checked>Bike lanes / Sidepaths
                         <i class="material-icons md-18 noselect"
                             onclick="document.getElementById('bike-lane-info-container').style.display='block'">info</i>
                     </td>
@@ -149,8 +150,8 @@
                 </tr>
                 <tr>
                     <td>
-                        <input id="programmed-checkbox" type="checkbox" class="legend-checkbox" onchange="legendToggleProgrammedLayer(this.checked)"
-                            checked>Planned Bikeways<br>
+                        <input id="programmed-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleProgrammedLayer(this.checked)" checked>Planned Bikeways<br>
                     </td>
                     <td>
                         <svg height="10" width="100" class="programmed-legend">
@@ -160,8 +161,8 @@
                 </tr>
                 <tr>
                     <td>
-                        <input id="citrix-checkbox" type="checkbox" class="legend-checkbox" onchange="legendToggleCitrixLayer(this.checked)"
-                            checked>Citrix Cycle Stations
+                        <input id="citrix-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleCitrixLayer(this.checked)" checked>Citrix Cycle Stations
                         <i class="material-icons md-18 noselect"
                             onclick="document.getElementById('citrix-info-container').style.display='block'">info</i>
                     </td>
@@ -267,6 +268,18 @@
 </body>
 
 <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').then(function (registration) {
+                // Registration was successful
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }, function (err) {
+                // registration failed :(
+                console.warn('ServiceWorker registration failed: ', err);
+            });
+        });
+    }
+
     mapboxgl.accessToken = 'pk.eyJ1Ijoib2Frc2FuZHNwb2tlcyIsImEiOiJjazR1M2Ztc3cwZXl2M21ub3p6eXF3b2txIn0.BNI4-QbP-094byFujTJAuQ'
 
     const colors = {
@@ -380,11 +393,11 @@
     var lastCameraLng = getCookie("lastCameraLng");
     var lastCameraLat = getCookie("lastCameraLat");
     var lastZoom = getCookie("lastZoom") || 12;
-    if(!lastCameraLng || !lastCameraLat) {
+    if (!lastCameraLng || !lastCameraLat) {
         lastCameraLng = "-78.638176";
         lastCameraLat = "35.779591"
-        setCookie("lastCameraLng",lastCameraLng,1000);
-        setCookie("lastCameraLat",lastCameraLat,1000);
+        setCookie("lastCameraLng", lastCameraLng, 1000);
+        setCookie("lastCameraLat", lastCameraLat, 1000);
     }
 
     let map = new mapboxgl.Map({
@@ -394,11 +407,11 @@
         zoom: lastZoom
     });
 
-    map.on('idle',() => {
+    map.on('idle', () => {
         var mapCenter = map.getCenter();
-        setCookie("lastCameraLng",mapCenter.lng,1000);
-        setCookie("lastCameraLat",mapCenter.lat,1000);
-        setCookie("lastZoom",map.getZoom(),1000);
+        setCookie("lastCameraLng", mapCenter.lng, 1000);
+        setCookie("lastCameraLat", mapCenter.lat, 1000);
+        setCookie("lastZoom", map.getZoom(), 1000);
     })
 
     map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
@@ -851,17 +864,17 @@
                 'line-opacity': ['case',
                     ['any',
                         ['match',
-                        ['get', 'cycleway'],
-                        'lane', true, false], 
+                            ['get', 'cycleway'],
+                            'lane', true, false],
                         ['match',
-                        ['get', 'cycleway:left'],
-                        'lane', true, false],
+                            ['get', 'cycleway:left'],
+                            'lane', true, false],
                         ['match',
-                        ['get', 'cycleway:right'],
-                        'lane', true, false],
+                            ['get', 'cycleway:right'],
+                            'lane', true, false],
                         ['match',
-                        ['get', 'cycleway'],
-                        'track', true, false]
+                            ['get', 'cycleway'],
+                            'track', true, false]
                     ],
                     1,
                     0]
@@ -879,11 +892,11 @@
                 'line-opacity': ['case',
                     ['any',
                         ['match',
-                        ['get', 'highway'],
-                        'cycleway', true, false], 
+                            ['get', 'highway'],
+                            'cycleway', true, false],
                         ['match',
-                        ['get', 'bicycle'],
-                        'designated', true, false],
+                            ['get', 'bicycle'],
+                            'designated', true, false],
                     ],
                     1,
                     0
@@ -1148,7 +1161,7 @@
                 document.getElementById('programmed-checkbox').checked = false;
             }
         } else {
-            setCookie("hasOpened","true",1000);
+            setCookie("hasOpened", "true", 1000);
             // We default the programmed bike infra to not show
             legendToggleProgrammedLayer(false);
             document.getElementById('programmed-checkbox').checked = false;
@@ -1159,7 +1172,7 @@
 
     function legendToggleGreenwayLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideGreenway",(!isChecked).toString(),1000);
+        setCookie("hideGreenway", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.RALEIGH_GREENWAY, 'visibility', visibilityState);
         map.setLayoutProperty(layers.CARY_GREENWAY, 'visibility', visibilityState);
@@ -1172,7 +1185,7 @@
 
     function legendToggleGreenwayDashedLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideGreenwayDashed",(!isChecked).toString(),1000);
+        setCookie("hideGreenwayDashed", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.RALEIGH_GREENWAY_DASHED, 'visibility', visibilityState);
         map.setLayoutProperty(layers.CARY_GREENWAY_DASHED, 'visibility', visibilityState);
@@ -1182,14 +1195,14 @@
 
     function legendToggleGreenwayDetourLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideGreenwayDetour",(!isChecked).toString(),1000);
+        setCookie("hideGreenwayDetour", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.GREENWAY_DETOUR, 'visibility', visibilityState);
     }
 
     function legendToggleFacilitiesLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideFacilities",(!isChecked).toString(),1000);
+        setCookie("hideFacilities", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.EXISTING, 'visibility', visibilityState);
         map.setLayoutProperty(layers.CARY_BIKES, 'visibility', visibilityState);
@@ -1199,7 +1212,7 @@
 
     function legendToggleDashedFacilitiesLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideFacilitiesDashed",(!isChecked).toString(),1000);
+        setCookie("hideFacilitiesDashed", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.EXISTING_DASHED, 'visibility', visibilityState);
         map.setLayoutProperty(layers.CARY_BIKES_DASHED, 'visibility', visibilityState);
@@ -1209,7 +1222,7 @@
 
     function legendToggleProgrammedLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideProgrammed",(!isChecked).toString(),1000);
+        setCookie("hideProgrammed", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.PROGRAMMED, 'visibility', visibilityState);
         map.setLayoutProperty(layers.PROGRAMMED_DASHED, 'visibility', visibilityState);
@@ -1217,7 +1230,7 @@
 
     function legendToggleCitrixLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideCitrix",(!isChecked).toString(),1000);
+        setCookie("hideCitrix", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.CITRIX, 'visibility', visibilityState);
     }
@@ -1260,23 +1273,23 @@
             }, options);
     }
 
-    function setCookie(name,value,days) {
+    function setCookie(name, value, days) {
         var expires = "";
         if (days) {
             var date = new Date();
-            date.setTime(date.getTime() + (days*24*60*60*1000));
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
             expires = "; expires=" + date.toUTCString();
         }
-        document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
     }
 
     function getCookie(name) {
         var nameEQ = name + "=";
         var ca = document.cookie.split(';');
-        for(var i=0;i < ca.length;i++) {
+        for (var i = 0; i < ca.length; i++) {
             var c = ca[i];
-            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
         }
         return null;
     }
