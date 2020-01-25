@@ -56,3 +56,26 @@ self.addEventListener('fetch', function (event) {
             })
     );
 });
+
+self.addEventListener('activate', function (event) {
+
+    var cacheWhitelist = [
+        '/img/bike_lane.jpg',
+        '/img/citrix.jpg',
+        '/img/marginal-greenway-1.jpg',
+        '/img/marginal-greenway-2.jpg',
+        '/img/sidepath.jpg'
+    ];
+
+    event.waitUntil(
+        caches.keys().then(function (cacheNames) {
+            return Promise.all(
+                cacheNames.map(function (cacheName) {
+                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});

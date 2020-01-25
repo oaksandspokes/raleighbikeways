@@ -8,7 +8,7 @@
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.css' rel='stylesheet' />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-    <script src=" https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.0.2/mapbox-gl-directions.js">
+    <script src="mapbox-gl-directions.js">
     </script>
     <link rel="stylesheet"
         href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.0.2/mapbox-gl-directions.css"
@@ -43,17 +43,22 @@
         </div>
     </div> -->
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
-        <i class="material-icons md-36 md-light noselect">info</i>
+        <i class="material-icons md-36 md-light black-border noselect">info</i>
+    </div>
+    <div id="style-icon-container" onclick="document.getElementById('map-style-container').style.display='block'">
+        <i class="material-icons md-36 md-light black-border noselect">layers</i>
     </div>
     <div id="direction-buttons" style="display: none;">
-        <i class="material-icons md-36 md-light noselect" id="curr-location-nav"
+        <i class="material-icons md-36 md-light black-border noselect" id="curr-location-nav"
             onclick="setNavOrigin()">my_location</i>
-        <i class=" material-icons md-36 md-light noselect" onclick="toggleDirectionSection()">visibility_off</i>
+        <i class=" material-icons md-36 md-light black-border noselect"
+            onclick="toggleDirectionSection()">visibility_off</i>
     </div>
     <div id="show-directions-container">
-        <i class=" material-icons md-48 md-light noselect" onclick="toggleDirectionSection()">navigation</i>
+        <i class=" material-icons md-48 md-light black-border noselect"
+            onclick="toggleDirectionSection()">navigation</i>
         <br>
-        <span>NAV</span>
+        <span class="black-border">NAV</span>
     </div>
     <div id="info-box-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
         <div id="info-box" class="modal" onclick="event.stopPropagation()">
@@ -263,6 +268,33 @@
             <br>
         </div>
     </div>
+    <div id="map-style-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
+        <div id="map-style-selection" class="modal legend-info" onclick="event.stopPropagation()">
+            <i class=" material-icons md-24 noselect close-button"
+                onclick="document.getElementById('map-style-container').style.display='none'">close</i>
+            <div id="about">
+                <div class="legend-info-title">Map Style Selection</div>
+                <input onclick="setStyle(this.id)" id="dark-v10" type="radio" name="rtoggle" value="dark"
+                    checked="checked" />
+                <label for="dark">dark</label>
+                <br>
+                <input onclick="setStyle(this.id)" id="streets-v11" type="radio" name="rtoggle" value="streets" />
+                <label for="streets">streets</label>
+                <br>
+                <input onclick="setStyle(this.id)" id="light-v10" type="radio" name="rtoggle" value="light" />
+                <label for="light">light</label>
+                <br>
+                <input onclick="setStyle(this.id)" id="outdoors-v11" type="radio" name="rtoggle" value="outdoors" />
+                <label for="outdoors">outdoors</label>
+                <br>
+                <input onclick="setStyle(this.id)" id="satellite-v9" type="radio" name="rtoggle" value="satellite" />
+                <label for="satellite">satellite</label>
+                <br>
+                <br>
+                <div><i>Warning: This will clear any entered directions</i></div>
+            </div>
+        </div>
+    </div>
     </div>
 
 </body>
@@ -288,8 +320,9 @@
         GREENWAY: '#28B463',
         GREENWAY_CLOSED: '#CC0000',
         GREENWAY_CLOSED_X: '#FF0000',
-        GREENWAY_DETOUR: 'yellow',
-        EXISTING: '#EEE',
+        GREENWAY_DETOUR: '#ff6600',
+        //EXISTING: '#EEE',
+        EXISTING: '#bd35bd',
     }
 
     const layers = {
@@ -390,6 +423,16 @@
         ]
     }];
 
+    var mapStyle;
+    var savedStyle = getCookie("mapStyle");
+    if (savedStyle) {
+        mapStyle = savedStyle;
+        document.getElementById(savedStyle).checked = true;
+    } else {
+        setCookie("mapStyle", "dark-v10", 1000);
+        mapStyle = "dark-v10";
+    }
+
     var lastCameraLng = getCookie("lastCameraLng");
     var lastCameraLat = getCookie("lastCameraLat");
     var lastZoom = getCookie("lastZoom") || 12;
@@ -402,7 +445,7 @@
 
     let map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/peterboyer/cjr49i1ql0mza2srxxtgqlpqw',
+        style: 'mapbox://styles/mapbox/' + mapStyle,
         center: [lastCameraLng, lastCameraLat],
         zoom: lastZoom
     });
@@ -456,8 +499,6 @@
             proximity: "-78.6397933959961,35.77966399144513",
         }
     })
-
-    map.addControl(directionContol, 'top-left');
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -561,13 +602,125 @@
     // let chCarrboroQuery = `${chCarrboroURL}/query?${chCarrboroQueryParams}`;
     let chCarrboroQuery = 'https://gist.githubusercontent.com/jonathonwpowell/23679b5c11f8108bc1aecad157475a8f/raw/ch-carrboro-bike-facilities.geojson';
 
-    map.on('load', () => {
+    map.on('style.load', () => {
+
+        addMapSources();
+
+        addMapLayers();
+
+        // We need to re-add the directionControl on a style change or the line won't work
+        map.addControl(directionContol, 'top-left');
+
+        // After the map has started loading and all the layers have been added
+        // we want to disable any layers the user previously removed
+        if (getCookie("hasOpened")) {
+            if (getCookie("hideGreenway") === "true") {
+                legendToggleGreenwayLayer(false);
+                document.getElementById('greenway-checkbox').checked = false;
+            }
+            if (getCookie("hideGreenwayDashed") === "true") {
+                legendToggleGreenwayDashedLayer(false);
+                document.getElementById('greenway-dashed-checkbox').checked = false;
+            }
+            if (getCookie("hideGreenwayDetour") === "true") {
+                legendToggleGreenwayDetourLayer(false);
+                document.getElementById('greenway-detour-checkbox').checked = false;
+            }
+            if (getCookie("hideFacilities") === "true") {
+                legendToggleFacilitiesLayer(false);
+                document.getElementById('facilities-checkbox').checked = false;
+            }
+            if (getCookie("hideFacilitiesDashed") === "true") {
+                legendToggleDashedFacilitiesLayer(false);
+                document.getElementById('facilities-dashed-checkbox').checked = false;
+            }
+            if (getCookie("hideCitrix") === "true") {
+                legendToggleCitrixLayer(false);
+                document.getElementById('citrix-checkbox').checked = false;
+            }
+            if (getCookie("hideProgrammed") === "true") {
+                legendToggleProgrammedLayer(false);
+                document.getElementById('programmed-checkbox').checked = false;
+            }
+        } else {
+            setCookie("hasOpened", "true", 1000);
+            // We default the programmed bike infra to not show
+            legendToggleProgrammedLayer(false);
+            document.getElementById('programmed-checkbox').checked = false;
+        }
+
+        map.resize();
+    });
+
+    function addMapSources() {
+
+        map.addSource(sources.CARY_BIKES, {
+            'type': 'geojson',
+            'data': caryBikeQuery,
+        });
+
+        map.addSource(sources.PROGRAMMED_FACILITIES, {
+            'type': 'geojson',
+            'data': programmedBikeFacilitiesQuery
+        });
+
+        map.addSource(sources.RALEIGH_GREENWAY, {
+            'type': 'geojson',
+            'data': existingRaleighGreenwaysQuery
+        });
+
+        map.addSource(sources.GREENWAY_DETOUR, {
+            'type': 'geojson',
+            'data': greenwayDetourQuery,
+        });
+
+        map.addSource(sources.UMSTEAD, {
+            'type': 'geojson',
+            'data': umsteadQuery,
+        });
+
+        map.addSource(sources.DURHAM_SOLID, {
+            'type': 'geojson',
+            'data': durhamSolidQuery
+        });
+
+        map.addSource(sources.DURHAM_DASHED, {
+            'type': 'geojson',
+            'data': durhamDashedQuery
+        });
+
+        map.addSource(sources.MINGO_GREENWAY, {
+            'type': 'geojson',
+            'data': mingoGreenwayQuery
+        });
+
+        map.addSource(sources.SMITH_GREENWAY, {
+            'type': 'geojson',
+            'data': smithCreekGreenwayQuery
+        });
+
+        map.addSource(sources.CARY_GREENWAY, {
+            'type': 'geojson',
+            'data': caryGreenwaysQuery
+        });
 
         map.addSource(sources.EXISTING_FACILITIES, {
             'type': 'geojson',
             'data': existingBikeFacilitiesQuery
         });
 
+        map.addSource(sources.CITRIX, {
+            'type': 'geojson',
+            'data': citrixCycleStationsQuery
+        });
+
+        map.addSource(sources.CH_CARRBORO, {
+            'type': 'geojson',
+            'data': chCarrboroQuery
+        });
+    }
+
+    function addMapLayers() {
         map.addLayer({
             'id': layers.EXISTING,
             'type': 'line',
@@ -609,11 +762,6 @@
             }
         });
 
-        map.addSource(sources.CARY_BIKES, {
-            'type': 'geojson',
-            'data': caryBikeQuery,
-        });
-
         map.addLayer({
             'id': layers.CARY_BIKES,
             'type': 'line',
@@ -653,11 +801,6 @@
                 ],
                 'line-dasharray': [1, 2]
             }
-        });
-
-        map.addSource(sources.PROGRAMMED_FACILITIES, {
-            'type': 'geojson',
-            'data': programmedBikeFacilitiesQuery
         });
 
         map.addLayer({
@@ -706,11 +849,6 @@
                 ],
                 'line-dasharray': [1, 2]
             }
-        });
-
-        map.addSource(sources.RALEIGH_GREENWAY, {
-            'type': 'geojson',
-            'data': existingRaleighGreenwaysQuery
         });
 
         map.addLayer({
@@ -767,11 +905,6 @@
             }
         });
 
-        map.addSource(sources.GREENWAY_DETOUR, {
-            'type': 'geojson',
-            'data': greenwayDetourQuery,
-        });
-
         map.addLayer({
             'id': layers.GREENWAY_DETOUR,
             'type': 'line',
@@ -784,11 +917,6 @@
             }
         });
 
-        map.addSource(sources.UMSTEAD, {
-            'type': 'geojson',
-            'data': umsteadQuery,
-        });
-
         map.addLayer({
             'id': layers.UMSTEAD,
             'type': 'line',
@@ -799,13 +927,6 @@
                 'line-width': 1.5,
                 'line-dasharray': [1, 2],
             }
-        });
-
-
-
-        map.addSource(sources.CARY_GREENWAY, {
-            'type': 'geojson',
-            'data': caryGreenwaysQuery
         });
 
         map.addLayer({
@@ -846,11 +967,6 @@
                 ],
                 'line-dasharray': [1, 2]
             }
-        });
-
-        map.addSource(sources.DURHAM_SOLID, {
-            'type': 'geojson',
-            'data': durhamSolidQuery
         });
 
         map.addLayer({
@@ -904,11 +1020,6 @@
             }
         });
 
-        map.addSource(sources.DURHAM_DASHED, {
-            'type': 'geojson',
-            'data': durhamDashedQuery
-        });
-
         map.addLayer({
             'id': layers.DURHAM_FACILITIES_DASHED,
             'type': 'line',
@@ -919,11 +1030,6 @@
                 'line-width': 1.5,
                 'line-dasharray': [1, 2],
             }
-        });
-
-        map.addSource(sources.MINGO_GREENWAY, {
-            'type': 'geojson',
-            'data': mingoGreenwayQuery
         });
 
         map.addLayer({
@@ -937,11 +1043,6 @@
             }
         });
 
-        map.addSource(sources.SMITH_GREENWAY, {
-            'type': 'geojson',
-            'data': smithCreekGreenwayQuery
-        });
-
         map.addLayer({
             'id': layers.SMITH_GREENWAY,
             'type': 'line',
@@ -951,11 +1052,6 @@
                 'line-color': colors.GREENWAY,
                 'line-width': 1.5,
             }
-        });
-
-        map.addSource(sources.CH_CARRBORO, {
-            'type': 'geojson',
-            'data': chCarrboroQuery
         });
 
         map.addLayer({
@@ -1026,11 +1122,6 @@
                 ],
                 'line-dasharray': [1, 2],
             }
-        });
-
-        map.addSource(sources.CITRIX, {
-            'type': 'geojson',
-            'data': citrixCycleStationsQuery
         });
 
         /* ---------------------Add symbol layers last so they are on top----------------------- */
@@ -1129,46 +1220,7 @@
             },
         });
 
-        // After the map has started loading and all the layers have been added
-        // we want to disable any layers the user previously removed
-        if (getCookie("hasOpened")) {
-            if (getCookie("hideGreenway") === "true") {
-                legendToggleGreenwayLayer(false);
-                document.getElementById('greenway-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDashed") === "true") {
-                legendToggleGreenwayDashedLayer(false);
-                document.getElementById('greenway-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDetour") === "true") {
-                legendToggleGreenwayDetourLayer(false);
-                document.getElementById('greenway-detour-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilities") === "true") {
-                legendToggleFacilitiesLayer(false);
-                document.getElementById('facilities-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilitiesDashed") === "true") {
-                legendToggleDashedFacilitiesLayer(false);
-                document.getElementById('facilities-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideCitrix") === "true") {
-                legendToggleCitrixLayer(false);
-                document.getElementById('citrix-checkbox').checked = false;
-            }
-            if (getCookie("hideProgrammed") === "true") {
-                legendToggleProgrammedLayer(false);
-                document.getElementById('programmed-checkbox').checked = false;
-            }
-        } else {
-            setCookie("hasOpened", "true", 1000);
-            // We default the programmed bike infra to not show
-            legendToggleProgrammedLayer(false);
-            document.getElementById('programmed-checkbox').checked = false;
-        }
-
-        map.resize();
-    });
+    }
 
     function legendToggleGreenwayLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
@@ -1233,6 +1285,21 @@
         setCookie("hideCitrix", (!isChecked).toString(), 1000);
 
         map.setLayoutProperty(layers.CITRIX, 'visibility', visibilityState);
+    }
+
+    function setStyle(layerId) {
+        var currentStyle = getCookie("mapStyle");
+        if (layerId === currentStyle) return;
+
+        // We need to remove the direction control before the style changes or it will break
+        if (showingDirectionsSection) {
+            toggleDirectionSection();
+        }
+        directionContol.removeRoutes();
+        map.removeControl(directionContol);
+
+        setCookie("mapStyle", layerId, 1000);
+        map.setStyle('mapbox://styles/mapbox/' + layerId);
     }
 
     function toggleDirectionSection() {
