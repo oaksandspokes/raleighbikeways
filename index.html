@@ -551,7 +551,7 @@
 
         addMapLayers();
 
-        addBikeCounters();
+        await addBikeCounters();
 
         // We need to re-add the directionControl on a style change or the line won't work
         map.addControl(directionContol, 'top-left');
@@ -926,7 +926,18 @@
         });
     }
 
-    function addBikeCounters() {
+    const updateInterval = 30; // how often to fetch the bike count data, in seconds
+
+    async function addBikeCounters() {
+
+        const bike_count_geojson = await fetchBikeCountData();
+        
+        map.addSource('bike_count_info', {
+            type: 'geojson',
+            data: bike_count_geojson
+        });
+
+        // TODO remove
         map.addSource('bikepoint', {
             'type': 'geojson',
             'data': {
@@ -943,6 +954,7 @@
             }
         });
 
+        // TODO update these two layers to show new data
         map.addLayer({
             'id': 'points_circle',
             'type': 'circle',
@@ -953,7 +965,6 @@
                 'circle-stroke-width': 1,
             }
         });
-
         map.addLayer({
             'id': 'points_count',
             'type': 'symbol',
@@ -964,6 +975,39 @@
                 'text-size': 12,
             },
         });
+    }
+
+    const updateSource = setInterval(async () => {
+        const bike_count_geojson = await fetchBikeCountData(updateSource);
+        map.getSource('bike_count_info').setData(json);
+    }, updateInterval * 1000);
+    
+    async function fetchBikeCountData(updateSource) {
+        try {
+            const response = await fetch(
+                'https://bike-counter.herokuapp.com/v1/location/',
+                { method: 'GET' }
+            );
+            const json = await response.json();
+            // TODO json is array of objects, get data from each and put in the geojson
+            debugger;
+            return {
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'Point',
+                            //'coordinates': [longitude, latitude]
+                            'coordinates': [0, 0]
+                        }
+                    }
+                ]
+            };
+        } catch (err) {
+        if (updateSource) clearInterval(updateSource);
+            throw new Error(err);
+        }
     }
 
     function legendToggleGreenwayLayer(isChecked) {
