@@ -551,6 +551,8 @@
 
         addMapLayers();
 
+        addBikeCounters();
+
         // We need to re-add the directionControl on a style change or the line won't work
         map.addControl(directionContol, 'top-left');
 
@@ -920,6 +922,46 @@
                 'text-color': colors.GREENWAY,
                 'text-halo-width': 1,
                 'text-halo-color': 'black',
+            },
+        });
+    }
+
+    function addBikeCounters() {
+        map.addSource('bikepoint', {
+            'type': 'geojson',
+            'data': {
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'Point',
+                            'coordinates': [-78.644615, 35.777838]
+                        }
+                    }
+                ]
+            }
+        });
+
+        map.addLayer({
+            'id': 'points_circle',
+            'type': 'circle',
+            'source': 'bikepoint',
+            'paint': {
+                'circle-color': 'white',
+                'circle-radius': 18,
+                'circle-stroke-width': 1,
+            }
+        });
+
+        map.addLayer({
+            'id': 'points_count',
+            'type': 'symbol',
+            'source': 'bikepoint',
+            'layout': {
+                'text-field': '99',
+                'symbol-placement': 'point',
+                'text-size': 12,
             },
         });
     }
