@@ -551,8 +551,6 @@
 
         addMapLayers();
 
-        await addBikeCounters();
-
         // We need to re-add the directionControl on a style change or the line won't work
         map.addControl(directionContol, 'top-left');
 
@@ -926,60 +924,20 @@
         });
     }
 
+    map.on('load', async () => {
+        await addBikeCounters();
+    });
+
     const updateInterval = 30; // how often to fetch the bike count data, in seconds
 
     async function addBikeCounters() {
-
-        const bike_count_geojson = await fetchBikeCountData();
-        
-        map.addSource('bike_count_info', {
-            type: 'geojson',
-            data: bike_count_geojson
-        });
-
-        // TODO remove
-        map.addSource('bikepoint', {
-            'type': 'geojson',
-            'data': {
-                'type': 'FeatureCollection',
-                'features': [
-                    {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'Point',
-                            'coordinates': [-78.644615, 35.777838]
-                        }
-                    }
-                ]
-            }
-        });
-
-        // TODO update these two layers to show new data
-        map.addLayer({
-            'id': 'points_circle',
-            'type': 'circle',
-            'source': 'bikepoint',
-            'paint': {
-                'circle-color': 'white',
-                'circle-radius': 18,
-                'circle-stroke-width': 1,
-            }
-        });
-        map.addLayer({
-            'id': 'points_count',
-            'type': 'symbol',
-            'source': 'bikepoint',
-            'layout': {
-                'text-field': '99',
-                'symbol-placement': 'point',
-                'text-size': 12,
-            },
-        });
+        const bike_count_data = await fetchBikeCountData();
+        setBikeCountData(bike_count_data);
     }
 
     const updateSource = setInterval(async () => {
-        const bike_count_geojson = await fetchBikeCountData(updateSource);
-        map.getSource('bike_count_info').setData(json);
+        const bike_count_json = await fetchBikeCountData(updateSource);
+        setBikeCountData(bike_count_json);
     }, updateInterval * 1000);
     
     async function fetchBikeCountData(updateSource) {
@@ -989,25 +947,66 @@
                 { method: 'GET' }
             );
             const json = await response.json();
-            // TODO json is array of objects, get data from each and put in the geojson
-            debugger;
-            return {
-                'type': 'FeatureCollection',
-                'features': [
-                    {
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'Point',
-                            //'coordinates': [longitude, latitude]
-                            'coordinates': [0, 0]
-                        }
-                    }
-                ]
-            };
+            return json;
         } catch (err) {
-        if (updateSource) clearInterval(updateSource);
+            if (updateSource) clearInterval(updateSource);
             throw new Error(err);
         }
+    }
+
+    function setBikeCountData(data) {
+        // TODO update wasn't working but would be better than deleting and re-adding
+        for (let i = 0; i < data.length; i++) {
+            let name = replaceSpaces(data[i].name);
+            if(map.getSource('bike_count_info_' + name)) {
+                if (map.getLayer('bike_count_circle_' + name)) {
+                    map.removeLayer('bike_count_circle_' + name);
+                }
+                if (map.getLayer('bike_count_num_' + name)) {
+                    map.removeLayer('bike_count_num_' + name);
+                }
+                map.removeSource('bike_count_info_' + name);
+            }
+            map.addSource('bike_count_info_' + name, {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': [
+                        {
+                            'type': 'Feature',
+                            'geometry': {
+                                'type': 'Point',
+                                'coordinates': [data[i].long, data[i].lat]
+                            }
+                        }
+                    ]
+                }
+            });
+            map.addLayer({
+                'id': 'bike_count_circle_' + name,
+                'type': 'circle',
+                'source': 'bike_count_info_' + name,
+                'paint': {
+                    'circle-color': 'white',
+                    'circle-radius': 18,
+                    'circle-stroke-width': 1,
+                }
+            });
+            map.addLayer({
+                'id': 'bike_count_num_' + name,
+                'type': 'symbol',
+                'source': 'bike_count_info_' + name,
+                'layout': {
+                    'text-field': data[i].bike_count,
+                    'symbol-placement': 'point',
+                    'text-size': 12,
+                },
+            });
+        }
+    }
+
+    function replaceSpaces(name) {
+        return name.replaceAll(' ', '_');
     }
 
     function legendToggleGreenwayLayer(isChecked) {
