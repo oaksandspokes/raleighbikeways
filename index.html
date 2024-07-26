@@ -177,6 +177,17 @@
                         </svg>
                     </td>
                 </tr>
+                <tr>
+                    <td>
+                        <input id="bike-parking-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleBikeParking(this.checked);" checked>Bike Parking<br>
+                    </td>
+                    <td>
+                        <svg height="24" width="24" class="existing-legend">
+                            <circle cx="12" cy="12" r="10" stroke="black" stroke-width="2" fill="blue" />
+                        </svg>
+                    </td>
+                </tr>
             </table>
             <div id="feedback-button-container">
                 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeROy90gU_08wwKrasKIGHE4b-uOOUdohYK6ClDtKLd4zvQ1Q/viewform?usp=sf_link"
@@ -343,7 +354,7 @@
         MINGO_GREENWAY_NAMES: 'mingo-greenway-names-layer',
         SMITH_GREENWAY_NAMES: 'smith-greenway-names-layer',
         CH_CARR_FACILITIES_DASHED: 'chapel-hill-carrboro-facilities-dashed',
-
+        BIKE_PARKING: "bike-parking-osm",
     }
 
     const sources = {
@@ -583,6 +594,10 @@
             }
             if (getCookie("hideProgrammed") === "true") {
                 legendToggleProgrammedLayer(false);
+                document.getElementById('programmed-checkbox').checked = false;
+            }
+            if (getCookie("hideBikeParking") === "true") {
+                legendToggleBikeParking(false);
                 document.getElementById('programmed-checkbox').checked = false;
             }
         } else {
@@ -878,13 +893,32 @@
 
         /* ---------------------Add symbol layers last so they are on top----------------------- */
         map.addLayer({
+            'id': layers.BIKE_PARKING,
+            'type': 'circle',
+            'source': sources.OSM,
+            'minzoom': 15,
+            'layout': {},
+            'paint': {
+                'circle-color': 'blue',
+                'circle-radius': 4,
+                'circle-opacity': [
+                    'case',
+                    ["match", ["get", "amenity"], ["bicycle_parking"], true, false],
+                    1,
+                    0,
+                ],
+            }
+        });
+
+        map.addLayer({
             'id': layers.CITRIX,
             'type': 'circle',
             'source': sources.CITRIX,
+            'minzoom': 11,
             'layout': {},
             'paint': {
                 'circle-color': colors.CITRIX,
-                'circle-radius': 4,
+                'circle-radius': 5,
             }
         });
 
@@ -993,6 +1027,13 @@
         setCookie("hideCitrix", (!isChecked).toString(), 1000);
 
         setVisibilityProperty(layers.CITRIX, visibilityState);
+    }
+
+    function legendToggleBikeParking(isChecked) {
+        var visibilityState = isChecked ? 'visible' : 'none';
+        setCookie("hideBikeParking", (!isChecked).toString(), 1000);
+
+        setVisibilityProperty(layers.BIKE_PARKING, visibilityState);
     }
 
     function setVisibilityProperty(layer, isVisible) {
