@@ -975,6 +975,95 @@
         });
     }
 
+    map.on('load', async () => {
+        await addBikeCounters();
+    });
+
+    const updateInterval = 10; // how often to fetch the bike count data, in seconds
+
+    async function addBikeCounters() {
+        const bike_count_data = await fetchBikeCountData();
+        setBikeCountData(bike_count_data);
+    }
+
+    const updateSource = setInterval(async () => {
+        const bike_count_json = await fetchBikeCountData(updateSource);
+        setBikeCountData(bike_count_json);
+    }, updateInterval * 1000);
+    
+    async function fetchBikeCountData(updateSource) {
+        try {
+            const response = await fetch(
+                'https://bike-counter.herokuapp.com/v1/location/',
+                { method: 'GET' }
+            );
+            const json = await response.json();
+            return json;
+        } catch (err) {
+            if (updateSource) clearInterval(updateSource);
+            throw new Error(err);
+        }
+    }
+
+    function setBikeCountData(data) {
+        for (let i = 0; i < data.length; i++) {
+            let name = replaceSpaces(data[i].name);
+            if(map.getSource('bike_count_info_' + name)) {
+                // we're assuming that the coordinates attached to a name will not need to be updated
+                // this just updates the counts
+                if (map.getLayoutProperty('bike_count_num_' + name, 'text-field') != data[i].bike_count) {
+                    map.setLayoutProperty('bike_count_num_' + name, 'text-field', data[i].bike_count);
+                }
+            }
+            else {
+                addOneBikeCount(data[i]);
+            }
+        }
+    }
+
+    function addOneBikeCount(data) {
+        let name = replaceSpaces(data.name);
+        map.addSource('bike_count_info_' + name, {
+            'type': 'geojson',
+            'data': {
+                'type': 'FeatureCollection',
+                'features': [
+                    {
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'Point',
+                            'coordinates': [data.long, data.lat]
+                        }
+                    }
+                ]
+            }
+        });
+        map.addLayer({
+            'id': 'bike_count_circle_' + name,
+            'type': 'circle',
+            'source': 'bike_count_info_' + name,
+            'paint': {
+                'circle-color': 'white',
+                'circle-radius': 18,
+                'circle-stroke-width': 1,
+            }
+        });
+        map.addLayer({
+            'id': 'bike_count_num_' + name,
+            'type': 'symbol',
+            'source': 'bike_count_info_' + name,
+            'layout': {
+                'text-field': data.bike_count,
+                'symbol-placement': 'point',
+                'text-size': 12,
+            },
+        });
+    }
+
+    function replaceSpaces(name) {
+        return name.replaceAll(' ', '_');
+    }
+
     function legendToggleGreenwayLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
         setCookie("hideGreenway", (!isChecked).toString(), 1000);
