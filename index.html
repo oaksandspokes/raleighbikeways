@@ -188,7 +188,7 @@
                         </svg>
                     </td>
                 </tr>
-                <tr>
+                <!-- <tr>
                     <td>
                         <input id="water-gauge-checkbox" type="checkbox" class="legend-checkbox"
                             onchange="legendToggleWaterGauges(this.checked)">Show All USGS Water Gauges
@@ -196,7 +196,7 @@
                     <td>
                         <span class="gaugeMarker_legend gaugeMarker_info">&nbsp;</span><span class="gaugeMarker_warn gaugeMarker_legend">&nbsp;</span><span class="gaugeMarker_legend gaugeMarker_flood">&nbsp;</span>
                     </td>
-                </tr>
+                </tr> -->
             </table>
             <div id="feedback-button-container">
                 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeROy90gU_08wwKrasKIGHE4b-uOOUdohYK6ClDtKLd4zvQ1Q/viewform?usp=sf_link"
@@ -619,9 +619,9 @@
                 legendToggleBikeParking(false);
                 document.getElementById('bike-parking-checkbox').checked = false;
             }
-            if (getCookie("showAllWaterGauges") === "true") {
+            if (getCookie("showAllWaterGauges") === "true" || window.location.search.substring("showWaterGauges")) {
                 showAllWaterGauges = true;
-                document.getElementById('water-gauge-checkbox').checked = true;
+                // document.getElementById('water-gauge-checkbox').checked = true;
             }
             // after reading cookie so we know whether to add the non-flood state water gauges
             handleWaterGauges();
@@ -1048,7 +1048,7 @@
             const gaugeInfo = waterGaugeMetadata[f.properties.usgsId];
             
             let gaugeClass = "gaugeMarker_info";
-            let msg = "Looking Good";
+            let msg = "Current Gauge Height: " + actualGaugeHeight;
             if (gaugeInfo) {
                 // Get all the defined water height messages that are for water heights less than the current water height,
                 //and then sort so that the message for the highest water height is first
@@ -1069,7 +1069,8 @@
             }
 
             const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-                '<p>Water Gauge Name: ' + f.properties.name + '</p><p>Height: ' + actualGaugeHeight + "</p><p>" + msg + "</p>"
+                '<p>USGS Water Gauge: <a href=https://waterdata.usgs.gov/monitoring-location/{0} target="_blank">{0}</a></p>'.replaceAll('{0}', f.properties.usgsId) +
+                "<p>" + msg + "</p>"
             );
 
             if (gaugeClass === "gaugeMarker_info" && showAllWaterGauges === false) {
