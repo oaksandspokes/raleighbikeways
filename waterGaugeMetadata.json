@@ -1,0 +1,24 @@
+{
+    "02087275": {
+      "waterHeightMessages": {
+        "warn" : {
+            "level": 11.5,
+            "message" : "Potential Greenway Flooding near the bridge under 70"
+        },
+        "flood" : {
+            "level": 12,
+            "message" : "Greenway is flooded near the bridge under 70"
+        }
+      }
+    },
+    "0208734210": {
+      "waterHeightMessages": {
+        "warn" : {
+            "level": 9.3
+        },
+        "flood" : {
+            "level": 9.8
+        }
+      }
+    }
+}
