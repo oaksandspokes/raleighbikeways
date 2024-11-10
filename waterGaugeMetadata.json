@@ -20,5 +20,15 @@
             "level": 9.8
         }
       }
-    }
+    },
+    "0209725960" : {
+        "waterHeightMessages": {
+          "warn" : {
+              "level": 6
+          },
+          "flood" : {
+              "level": 6.5
+          }
+        }
+      }
 }

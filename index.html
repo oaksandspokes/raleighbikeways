@@ -623,8 +623,8 @@
                 showAllWaterGauges = true;
                 document.getElementById('water-gauge-checkbox').checked = true;
             }
-            // after reading cookie
-            addWaterGaugeData();
+            // after reading cookie so we know whether to add the non-flood state water gauges
+            handleWaterGauges();
 
         } else {
             setCookie("hasOpened", "true", 1000);
@@ -1002,7 +1002,13 @@
     }
 
     function addWaterGaugeData() {
-        let waterGaugeIds = ["02087275","0208734210"]; // TODO: Use File instead of hard code
+        if (!waterGaugeMetadata) {
+            console.error("The Water Gauge Metadata was not populated");
+            return;
+        }
+
+
+        let waterGaugeIds = Object.keys(waterGaugeMetadata);
         let completeUrl = specificGaugesUrl.replace("{0}",waterGaugeIds.join(","));
 
         fetch(completeUrl, {
@@ -1017,7 +1023,7 @@
                 const gaugeTimeSeries = data.value.timeSeries.filter(ts => ts.variable.oid === GaugeVariableUSGSID);
                 if (gaugeTimeSeries) {
                     const gaugeGeoJSON = USGSToGeoJSON(gaugeTimeSeries);
-                    handleWaterGauges(gaugeGeoJSON);
+                    addWaterGaugesToMap(gaugeGeoJSON);
                 } else {
                     console.error("Gauge data was not part of the USGS data");
                 }
@@ -1033,7 +1039,11 @@
         addedWaterGaugeMarkers = [];
 
         geoJson.features.forEach(f => {
-            const actualGaugeHeight = f.properties.gaugeHeight;
+            const currentUrl = new URL(window.location.href);
+            const pretendGaugeHeight = currentUrl.searchParams.get("gaugeHeight");
+
+            // allow for a passed in gauge height for demo purposes
+            const actualGaugeHeight = pretendGaugeHeight ? pretendGaugeHeight : f.properties.gaugeHeight;
 
             const gaugeInfo = waterGaugeMetadata[f.properties.usgsId];
             
@@ -1073,7 +1083,7 @@
 
             const newMarker = new mapboxgl.Marker(el)
                 .setLngLat(f.geometry.coordinates)
-                .setPopup(popup)
+                .setPopup(popup) // TODO: Improve pop-up text and style
                 .addTo(map);
 
             addedWaterGaugeMarkers.push(newMarker);
@@ -1083,19 +1093,19 @@
         });
     }
 
-    function handleWaterGauges(gaugeGeoJSON) {
+    function handleWaterGauges() {
         if (!waterGaugeMetadata) {
             fetch("waterGaugeMetadata.json")
                 .then(response => response.json())
                 .then(json => {
                     waterGaugeMetadata = json;
-                    addWaterGaugesToMap(gaugeGeoJSON);
+                    addWaterGaugeData();
                 })
                 .catch(error => {
                     console.error("failed to fetch water gauge metadata", error);
                 });
         } else {
-            addWaterGaugesToMap(gaugeGeoJSON);
+            addWaterGaugeData();
         }
     }
 
@@ -1192,13 +1202,13 @@
 
         setVisibilityProperty(layers.BIKE_PARKING, visibilityState);
     }
-    
+
     function legendToggleWaterGauges(isChecked) {
         showAllWaterGauges = isChecked;
         setCookie("showAllWaterGauges", (isChecked).toString(), 1000);
 
         // re-fetch all data as well
-        addWaterGaugeData();
+        handleWaterGauges();
     }
 
     function setVisibilityProperty(layer, isVisible) {
