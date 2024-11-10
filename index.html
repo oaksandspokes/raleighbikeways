@@ -619,7 +619,7 @@
                 legendToggleBikeParking(false);
                 document.getElementById('bike-parking-checkbox').checked = false;
             }
-            if (getCookie("showAllWaterGauges") === "true" || window.location.search.substring("showWaterGauges")) {
+            if (getCookie("showAllWaterGauges") === "true" || window.location.search.search("showWaterGauges") != -1) {
                 showAllWaterGauges = true;
                 // document.getElementById('water-gauge-checkbox').checked = true;
             }
@@ -1017,8 +1017,6 @@
         })
             .then(response => response.json())
             .then(data => {
-                console.log("Got Water Gauge Data");
-                console.log(data);
                 const GaugeVariableUSGSID = "45807202";
                 const gaugeTimeSeries = data.value.timeSeries.filter(ts => ts.variable.oid === GaugeVariableUSGSID);
                 if (gaugeTimeSeries) {
@@ -1095,6 +1093,11 @@
     }
 
     function handleWaterGauges() {
+        if (window.location.search.search("showWaterGauges") == -1) {
+            // Don't do anything with the water gauges unless the param is present, as it is still in dev
+            return;
+        }
+
         if (!waterGaugeMetadata) {
             fetch("waterGaugeMetadata.json")
                 .then(response => response.json())
@@ -1136,7 +1139,6 @@
                 }
             }
 
-            console.log(feature);
             geoJSON.features.push(feature);
         });
 
