@@ -1,0 +1,38 @@
+{
+    "02087275": {
+      "waterHeightMessages": {
+        "warn" : {
+            "level": 11.5,
+            "message" : "Crabtree Creek Greenway is nearing flooding near the bridge under Gleenwood Ave"
+        },
+        "flood" : {
+            "level": 12,
+            "message" : "Crabtree Creek Greenway is flooded near the bridge under Gleenwood Ave"
+        }
+      }
+    },
+    "0208734210": {
+      "waterHeightMessages": {
+        "warn" : {
+            "level": 9.5,
+            "message": "The Walnut Creek Greenway upstream of the Trailwood Dr bridge is nearing flooding"
+        },
+        "flood" : {
+            "level": 10,
+            "message": "The Walnut Creek Greenway upstream of the Trailwood Dr bridge is flooded"
+        }
+      }
+    },
+    "0209725960" : {
+        "waterHeightMessages": {
+          "warn" : {
+              "level": 6.5,
+              "message": "Third Fork Creek is at bankfull, the Greenway may be flooded"
+          },
+          "flood" : {
+              "level": 7,
+              "message": "Third Fork Creek Greenway is flooded"
+          }
+        }
+      }
+}

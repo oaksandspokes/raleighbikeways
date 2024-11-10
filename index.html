@@ -188,6 +188,15 @@
                         </svg>
                     </td>
                 </tr>
+                <!-- <tr>
+                    <td>
+                        <input id="water-gauge-checkbox" type="checkbox" class="legend-checkbox"
+                            onchange="legendToggleWaterGauges(this.checked)">Show All USGS Water Gauges
+                    </td>
+                    <td>
+                        <span class="gaugeMarker_legend gaugeMarker_info">&nbsp;</span><span class="gaugeMarker_warn gaugeMarker_legend">&nbsp;</span><span class="gaugeMarker_legend gaugeMarker_flood">&nbsp;</span>
+                    </td>
+                </tr> -->
             </table>
             <div id="feedback-button-container">
                 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeROy90gU_08wwKrasKIGHE4b-uOOUdohYK6ClDtKLd4zvQ1Q/viewform?usp=sf_link"
@@ -325,6 +334,9 @@
 
     mapboxgl.accessToken = 'pk.eyJ1Ijoib2Frc2FuZHNwb2tlcyIsImEiOiJjazR1M2Ztc3cwZXl2M21ub3p6eXF3b2txIn0.BNI4-QbP-094byFujTJAuQ'
 
+    let allWaterGaugesUrl = 'https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=-79.189453,35.4472460,-78.22265,36.11791&siteStatus=all'
+    let specificGaugesUrl = 'https://waterservices.usgs.gov/nwis/iv/?format=json&sites={0}&siteStatus=active'
+
     const colors = {
         CITRIX: '#f9423a',
         PROGRAMMED: '#3498DB',
@@ -355,6 +367,8 @@
         SMITH_GREENWAY_NAMES: 'smith-greenway-names-layer',
         CH_CARR_FACILITIES_DASHED: 'chapel-hill-carrboro-facilities-dashed',
         BIKE_PARKING: "bike-parking-osm",
+        WATER_GAUGE: 'water-gauges',
+
     }
 
     const sources = {
@@ -372,6 +386,7 @@
         SMITH_GREENWAY: 'smith-greenway',
         CH_CARRBORO: 'chapel-hill-carrboro',
         OSM: 'osm-data',
+        USGS_WATER_GAUGES: 'usgs-water-gauges',
     }
 
     // Custom styling for the direction line
@@ -555,6 +570,10 @@
     let chCarrboroQuery = 'https://gist.githubusercontent.com/jonathonwpowell/23679b5c11f8108bc1aecad157475a8f/raw/ch-carrboro-bike-facilities.geojson';
     let osmQuery = 'https://raw.githubusercontent.com/oaksandspokes/bikeOsmExport/master/bikeInfra.geojson';
 
+    let waterGaugeMetadata = null;
+    let showAllWaterGauges = false;
+    let addedWaterGaugeMarkers = [];
+
 
     map.on('style.load', () => {
 
@@ -600,6 +619,13 @@
                 legendToggleBikeParking(false);
                 document.getElementById('bike-parking-checkbox').checked = false;
             }
+            if (getCookie("showAllWaterGauges") === "true" || window.location.search.search("showWaterGauges") != -1) {
+                showAllWaterGauges = true;
+                // document.getElementById('water-gauge-checkbox').checked = true;
+            }
+            // after reading cookie so we know whether to add the non-flood state water gauges
+            handleWaterGauges();
+
         } else {
             setCookie("hasOpened", "true", 1000);
             // We default the programmed bike infra to not show
@@ -975,6 +1001,150 @@
         });
     }
 
+    function addWaterGaugeData() {
+        if (!waterGaugeMetadata) {
+            console.error("The Water Gauge Metadata was not populated");
+            return;
+        }
+
+
+        let waterGaugeIds = Object.keys(waterGaugeMetadata);
+        let completeUrl = specificGaugesUrl.replace("{0}",waterGaugeIds.join(","));
+
+        fetch(completeUrl, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        })
+            .then(response => response.json())
+            .then(data => {
+                const GaugeVariableUSGSID = "45807202";
+                const gaugeTimeSeries = data.value.timeSeries.filter(ts => ts.variable.oid === GaugeVariableUSGSID);
+                if (gaugeTimeSeries) {
+                    const gaugeGeoJSON = USGSToGeoJSON(gaugeTimeSeries);
+                    addWaterGaugesToMap(gaugeGeoJSON);
+                } else {
+                    console.error("Gauge data was not part of the USGS data");
+                }
+                
+            })
+            .catch(e => {
+                console.error("error fetching water gauge data", e);
+            })
+    }
+
+    function addWaterGaugesToMap(geoJson) {
+        addedWaterGaugeMarkers.forEach(m => m.remove());
+        addedWaterGaugeMarkers = [];
+
+        geoJson.features.forEach(f => {
+            const currentUrl = new URL(window.location.href);
+            const pretendGaugeHeight = currentUrl.searchParams.get("gaugeHeight");
+
+            // allow for a passed in gauge height for demo purposes
+            const actualGaugeHeight = pretendGaugeHeight ? pretendGaugeHeight : f.properties.gaugeHeight;
+
+            const gaugeInfo = waterGaugeMetadata[f.properties.usgsId];
+            
+            let gaugeClass = "gaugeMarker_info";
+            let msg = "Current Gauge Height: " + actualGaugeHeight;
+            if (gaugeInfo) {
+                // Get all the defined water height messages that are for water heights less than the current water height,
+                //and then sort so that the message for the highest water height is first
+                const sortedRelevantLevels = Object.entries(gaugeInfo.waterHeightMessages).filter(e => e[1].level < actualGaugeHeight).sort((e1, e2) => e2[1].level - e1[1].level);
+                if (sortedRelevantLevels.length > 0) {
+                    const floodMsgType = sortedRelevantLevels[0][0]; // key of the first object maps to "warn" or "flood"
+
+                    gaugeClass = "gaugeMarker_" + floodMsgType
+                    if (sortedRelevantLevels[0][1].message) {
+                        msg = sortedRelevantLevels[0][1].message;
+                    } else {
+                        msg = floodMsgType;
+                    }
+                } else {
+                    // There are no messages for the current water height, so no flood warnings
+                    // Use the default info class
+                }
+            }
+
+            const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+                '<p>USGS Water Gauge: <a href=https://waterdata.usgs.gov/monitoring-location/{0} target="_blank">{0}</a></p>'.replaceAll('{0}', f.properties.usgsId) +
+                "<p>" + msg + "</p>"
+            );
+
+            if (gaugeClass === "gaugeMarker_info" && showAllWaterGauges === false) {
+                // In this state we only want the water gauges where there is some warning
+                return;
+            }
+
+            const el = document.createElement('div');
+            el.id = 'USGS_' + f.properties.usgsId;
+            el.className = 'gaugeMarker ' + gaugeClass;
+
+            const newMarker = new mapboxgl.Marker(el)
+                .setLngLat(f.geometry.coordinates)
+                .setPopup(popup) // TODO: Improve pop-up text and style
+                .addTo(map);
+
+            addedWaterGaugeMarkers.push(newMarker);
+
+            // TODO: credit https://www.flaticon.com/free-icon/water_833497 or new icon
+            console.log("Added water gauge to map: " + el.id);
+        });
+    }
+
+    function handleWaterGauges() {
+        if (window.location.search.search("showWaterGauges") == -1) {
+            // Don't do anything with the water gauges unless the param is present, as it is still in dev
+            return;
+        }
+
+        if (!waterGaugeMetadata) {
+            fetch("waterGaugeMetadata.json")
+                .then(response => response.json())
+                .then(json => {
+                    waterGaugeMetadata = json;
+                    addWaterGaugeData();
+                })
+                .catch(error => {
+                    console.error("failed to fetch water gauge metadata", error);
+                });
+        } else {
+            addWaterGaugeData();
+        }
+    }
+
+    function USGSToGeoJSON(timeSeries) {
+        const geoJSON = {
+            "type": "FeatureCollection",
+            "features": []
+        };
+
+        timeSeries.forEach(ts => {
+            const gaugeHeight = ts.values[0].value[0].value;
+            const lat = ts.sourceInfo.geoLocation.geogLocation.latitude;
+            const lng = ts.sourceInfo.geoLocation.geogLocation.longitude;
+            const name = ts.sourceInfo.siteName;
+            const siteUSGSId = ts.sourceInfo.siteCode.find(sc => sc.agencyCode === "USGS").value; // TODO: harden
+
+            const feature = {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lng, lat]
+                },
+                "properties": {
+                    "name": name,
+                    "usgsId": siteUSGSId,
+                    "gaugeHeight": gaugeHeight,
+                }
+            }
+
+            geoJSON.features.push(feature);
+        });
+
+        return geoJSON;
+    }
+
     function legendToggleGreenwayLayer(isChecked) {
         var visibilityState = isChecked ? 'visible' : 'none';
         setCookie("hideGreenway", (!isChecked).toString(), 1000);
@@ -1034,6 +1204,14 @@
         setCookie("hideBikeParking", (!isChecked).toString(), 1000);
 
         setVisibilityProperty(layers.BIKE_PARKING, visibilityState);
+    }
+
+    function legendToggleWaterGauges(isChecked) {
+        showAllWaterGauges = isChecked;
+        setCookie("showAllWaterGauges", (isChecked).toString(), 1000);
+
+        // re-fetch all data as well
+        handleWaterGauges();
     }
 
     function setVisibilityProperty(layer, isVisible) {
