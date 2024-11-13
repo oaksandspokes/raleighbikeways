@@ -188,15 +188,17 @@
                         </svg>
                     </td>
                 </tr>
-                <!-- <tr>
+                <tr>
                     <td>
                         <input id="water-gauge-checkbox" type="checkbox" class="legend-checkbox"
-                            onchange="legendToggleWaterGauges(this.checked)">Show All USGS Water Gauges
+                            onchange="legendToggleWaterGauges(this.checked)">Show All Water Gauges
+                        <i class="material-icons md-18 noselect"
+                        onclick="document.getElementById('water-gauge-info-container').style.display='block'">info</i>
                     </td>
                     <td>
                         <span class="gaugeMarker_legend gaugeMarker_info">&nbsp;</span><span class="gaugeMarker_warn gaugeMarker_legend">&nbsp;</span><span class="gaugeMarker_legend gaugeMarker_flood">&nbsp;</span>
                     </td>
-                </tr> -->
+                </tr>
             </table>
             <div id="feedback-button-container">
                 <a href="https://docs.google.com/forms/d/e/1FAIpQLSeROy90gU_08wwKrasKIGHE4b-uOOUdohYK6ClDtKLd4zvQ1Q/viewform?usp=sf_link"
@@ -284,6 +286,24 @@
                 </span>
                 <br>
                 <img src="img/citrix.jpg" width="500" />
+            </div>
+            <br>
+        </div>
+    </div>
+    <div id="water-gauge-info-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
+        <div id="water-gauge-info-info" class="modal legend-info" onclick="event.stopPropagation()">
+            <i class=" material-icons md-24 noselect close-button"
+                onclick="document.getElementById('water-gauge-info-container').style.display='none'">close</i>
+            <div id="about">
+                <div class="legend-info-title">USGS Water Gauges</div>
+                <span>
+                    This site pulls real time data from USGS Water Gauges stationed around the Triangle.  Any flood gauges that are recording a near flood or flood water level will always display an icon on the map,
+                    and showing all water gauges will display all the water gauges that are being checked.  The flood levels are based on the USGS/NOAA site descriptions for the gauge, and may not always
+                    be accurate or up to date.
+                </span>
+                <br>
+                <br>
+                <img src="img/stream-gauge-walnut-creek.jpg" width="500" />
             </div>
             <br>
         </div>
@@ -619,9 +639,9 @@
                 legendToggleBikeParking(false);
                 document.getElementById('bike-parking-checkbox').checked = false;
             }
-            if (getCookie("showAllWaterGauges") === "true" || window.location.search.search("showWaterGauges") != -1) {
+            if (getCookie("showAllWaterGauges") === "true") {
                 showAllWaterGauges = true;
-                // document.getElementById('water-gauge-checkbox').checked = true;
+                document.getElementById('water-gauge-checkbox').checked = true;
             }
             // after reading cookie so we know whether to add the non-flood state water gauges
             handleWaterGauges();
@@ -1046,7 +1066,10 @@
             const gaugeInfo = waterGaugeMetadata[f.properties.usgsId];
             
             let gaugeClass = "gaugeMarker_info";
-            let msg = "Current Gauge Height: " + actualGaugeHeight;
+
+            const warnLevel = gaugeInfo.waterHeightMessages["warn"]["level"];
+            const floodLevel = gaugeInfo.waterHeightMessages["flood"]["level"];
+            let msg = "Current Gauge Height: {0}ft<br>Warning Level: {1}ft<br>Flood Level: {2}ft".replace("{0}", actualGaugeHeight).replace("{1}", warnLevel).replace("{2}", floodLevel);
             if (gaugeInfo) {
                 // Get all the defined water height messages that are for water heights less than the current water height,
                 //and then sort so that the message for the highest water height is first
@@ -1082,22 +1105,14 @@
 
             const newMarker = new mapboxgl.Marker(el)
                 .setLngLat(f.geometry.coordinates)
-                .setPopup(popup) // TODO: Improve pop-up text and style
+                .setPopup(popup)
                 .addTo(map);
 
             addedWaterGaugeMarkers.push(newMarker);
-
-            // TODO: credit https://www.flaticon.com/free-icon/water_833497 or new icon
-            console.log("Added water gauge to map: " + el.id);
         });
     }
 
     function handleWaterGauges() {
-        if (window.location.search.search("showWaterGauges") == -1) {
-            // Don't do anything with the water gauges unless the param is present, as it is still in dev
-            return;
-        }
-
         if (!waterGaugeMetadata) {
             fetch("waterGaugeMetadata.json")
                 .then(response => response.json())
@@ -1124,7 +1139,7 @@
             const lat = ts.sourceInfo.geoLocation.geogLocation.latitude;
             const lng = ts.sourceInfo.geoLocation.geogLocation.longitude;
             const name = ts.sourceInfo.siteName;
-            const siteUSGSId = ts.sourceInfo.siteCode.find(sc => sc.agencyCode === "USGS").value; // TODO: harden
+            const siteUSGSId = ts.sourceInfo.siteCode.find(sc => sc.agencyCode === "USGS").value;
 
             const feature = {
                 "type": "Feature",
