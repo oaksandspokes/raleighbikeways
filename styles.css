@@ -74,6 +74,7 @@ body {
     z-index: 11;
     top: 0px;
     background-color: rgba(0, 0, 0, 0.54);
+
 }
 
 .modal {
@@ -86,12 +87,17 @@ body {
     width: fit-content;
     height: fit-content;
     font-size: 16px;
+    border-radius: 4px;
+    min-width: 200px;
+    min-height: 200px;
 }
 
 .modal img {
     padding: 5px;
     padding-top: 15px;
     max-width: 95%;
+    margin: auto;
+    display: block;
 }
 
 #info-icon-container {
@@ -296,7 +302,6 @@ Otherwise the parent z-index makes things difficult */
 }
 
 .gaugeMarker {
-    background-image: url('img/water.png');
     background-repeat: no-repeat;
     background-position: center;
     background-size: 90%;
@@ -306,29 +311,29 @@ Otherwise the parent z-index makes things difficult */
     cursor: pointer;
 }
 
+.gaugeMarker_info {
+    width: 20px;
+    height: 20px;
+    background-image: url('img/water_icon.png');
+    background-color: lightblue;
+    border-radius: 100%;
+}
+
 .gaugeMarker_legend {
-    background-image: url('img/water.png');
     background-repeat: no-repeat;
     background-position: center;
     background-size: 90%;
-    width: 20px;
-    height: 20px;
-    border-radius: 10%;
+    width: 25px;
+    height: 25px;
     cursor: pointer;
     display: inline-block;
-    margin-left: 10px;
-}
-
-.gaugeMarker_info {
-    width: 30px;
-    height: 30px;
-    background-color: lightblue;
+    margin-right: 10px;
 }
 
 .gaugeMarker_warn {
-    background-color: yellow;
+    background-image: url('img/warn_icon.png');
 }
 
 .gaugeMarker_flood {
-    background-color: red;
+    background-image: url('img/flood_icon.png');
 }
