@@ -11,6 +11,14 @@ body {
     bottom: 0px;
     width: 100%;
 }
+#autocomplete-container {
+    top: 0px;
+    left: 0px;
+    margin: 10px;
+    position: absolute;
+    z-index: 2;
+    width: fit-content;
+}
 
 /* #header {
     position: flex;
