@@ -58,14 +58,14 @@
     <div id="autocomplete-container">
         <!-- First location box -->
         <div>
-          <input id="startSearchBox" type="text" placeholder="Start Location" />
-          <button onclick="clearInput('startSearchBox')">Clear</button>
+          <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
+          <button class="clear-btn" onclick="clearInput('startSearchBox')">&times;</button>
         </div>
     
         <!-- Second location box -->
         <div>
-          <input id="endSearchBox" type="text" placeholder="End Location" />
-          <button onclick="clearInput('endSearchBox')">Clear</button>
+          <input class="search-box" id="endSearchBox" type="text" placeholder="End Location" />
+          <button class="clear-btn" onclick="clearInput('endSearchBox')">&times;</button>
         </div>
     </div>
     <!-- <div id="show-directions-container">
@@ -516,12 +516,18 @@
         zoom: lastZoom
     });
 
+    map.dragRotate.disable(); // we are using right click for something else
+
     map.on('idle', () => {
         var mapCenter = map.getCenter();
         setCookie("lastCameraLng", mapCenter.lng, 1000);
         setCookie("lastCameraLat", mapCenter.lat, 1000);
         setCookie("lastZoom", map.getZoom(), 1000);
-    })
+    });
+
+    map.on('contextmenu', event => {
+        showContextMenuPopupOnPoint(event.lngLat);
+    });
 
     map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
@@ -550,6 +556,10 @@
 
     let showingDirections = false;
     let showingDirectionsSection = false;
+
+    let contextMenuPopup = null;
+    let startMarker = null;
+    let endMarker = null;
 
     let startLocation = null;
     let endLocation = null;
@@ -684,6 +694,10 @@
             // We default the programmed bike infra to not show
             legendToggleProgrammedLayer(false);
             document.getElementById('programmed-checkbox').checked = false;
+        }
+
+        if (brouterRoute) {
+            setBrouterRoute(); // redisplay route if it exists
         }
 
         map.resize();
@@ -1375,15 +1389,60 @@
       };
 
       if (inputId === startSearchBoxId) {
-        startLocation = location;
+        setStartLocation(location);
       } else if (inputId === endSearchBoxId) {
-        endLocation = location;
+        setEndLocation(location);
       }
+    }
 
-      // Trigger the routing function once both locations are set
-      if (startLocation && endLocation) {
-        fetchRouteFromBRouter(startLocation, endLocation);
-      }
+    function setStartLocation(location) {
+        startLocation = location;
+
+        const searchBox = document.getElementById(startSearchBoxId);
+        if (searchBox.value === '') {
+            searchBox.value = `${location.lng.toString().slice(0,8)},${location.lat.toString().slice(0,8)}`;
+        }
+
+        if (startMarker) {
+            startMarker.remove();
+        }
+
+        startMarker = new mapboxgl.Marker({color: 'green'})
+            .setLngLat(startLocation)
+            .addTo(map)
+        
+        if (startLocation && endLocation) {
+            fetchRouteFromBRouter(startLocation, endLocation);
+        }
+    }
+
+    function setStartLocationLngLat(lng, lat) {
+        setStartLocation({'lng': lng, 'lat': lat});
+    }
+
+    function setEndLocation(location) {
+        endLocation = location;
+
+        const searchBox = document.getElementById(endSearchBoxId);
+        if (searchBox.value === '') {
+            searchBox.value = `${location.lng.toString().slice(0,8)},${location.lat.toString().slice(0,8)}`;
+        }
+
+        if (endMarker) {
+            endMarker.remove();
+        }
+
+        endMarker = new mapboxgl.Marker({color: 'red'})
+            .setLngLat(endLocation)
+            .addTo(map)
+        
+        if (startLocation && endLocation) {
+            fetchRouteFromBRouter(startLocation, endLocation);
+        }
+    }
+
+    function setEndLocationLngLat(lng, lat) {
+        setEndLocation({'lng': lng, 'lat': lat});
     }
 
     function clearInput(inputId) {
@@ -1392,8 +1451,14 @@
 
       if (inputId === startSearchBoxId) {
         startLocation = null;
+        if (startMarker) {
+            startMarker.remove();
+        }
       } else if (inputId === endSearchBoxId) {
         endLocation = null;
+        if (endMarker) {
+            endMarker.remove();
+        }
       }
       brouterRoute = null;
       setBrouterRoute();
@@ -1414,6 +1479,30 @@
       } catch (error) {
         console.error('Error fetching route:', error);
       }
+    }
+
+    function showContextMenuPopupOnPoint(coordinates) {
+        closeContextMenuPopup();
+
+        const popupHtml = `
+        <div onClick=closeContextMenuPopup()>
+            <p onClick=setStartLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as Start</p>
+            <hr>
+            <p onClick=setEndLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as End</p>
+        </div>
+        `
+
+        contextMenuPopup = new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(popupHtml)
+            .addTo(map);
+    }
+
+    function closeContextMenuPopup() {
+        if (contextMenuPopup) {
+            contextMenuPopup.remove();
+            contextMenuPopup = null;
+        }
     }
 
     function handleGeoJsonResponse(geojson) {

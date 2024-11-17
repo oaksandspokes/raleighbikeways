@@ -11,14 +11,50 @@ body {
     bottom: 0px;
     width: 100%;
 }
+
 #autocomplete-container {
     top: 0px;
     left: 0px;
     margin: 10px;
     position: absolute;
     z-index: 2;
-    width: fit-content;
+    width: 70%;
+    max-width: 200px;
 }
+
+#autocomplete-container:focus-within {
+    max-width: 400px;
+}
+
+.search-box {
+    width: 100%;
+    margin-bottom: 10px;
+    height: 28px;
+    font-size: 18px;
+}
+
+.clear-btn {
+    position: absolute;
+    right: 0px;
+    background: white;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    margin-top: 2px;
+    color: #4b4b4b;
+    visibility: hidden;
+  }
+
+  .clear-btn:hover {
+    color: #000;
+  }
+
+  #autocomplete-container:focus-within .clear-btn{
+    visibility: visible;
+}
+
 
 /* #header {
     position: flex;
