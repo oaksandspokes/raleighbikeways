@@ -49,31 +49,31 @@
     <div id="style-icon-container" onclick="document.getElementById('map-style-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">layers</i>
     </div>
-    <div id="direction-buttons" style="display: none;">
+    <div id="direction-buttons">
         <i class="material-icons md-36 md-light black-border noselect" id="curr-location-nav"
             onclick="setNavOrigin()">my_location</i>
         <i class=" material-icons md-36 md-light black-border noselect"
             onclick="toggleDirectionSection()">visibility_off</i>
     </div>
-    <div id="autocomplete-container">
-        <!-- First location box -->
+    <div id="direction-search-container">
         <div>
           <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
           <button class="clear-btn" onclick="clearInput('startSearchBox')">&times;</button>
         </div>
-    
-        <!-- Second location box -->
         <div>
-          <input class="search-box" id="endSearchBox" type="text" placeholder="End Location" />
+          <input class="search-box search-box-last" id="endSearchBox" type="text" placeholder="End Location" />
           <button class="clear-btn" onclick="clearInput('endSearchBox')">&times;</button>
-        </div>
+        </div>   
+        <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
+            <i class=" material-icons md-24 md-dark black-border noselect">chevron_left</i>
+        </button>
     </div>
-    <!-- <div id="show-directions-container">
+    <div id="show-directions-container">
         <i class=" material-icons md-48 md-light black-border noselect"
             onclick="toggleDirectionSection()">navigation</i>
         <br>
         <span class="black-border">NAV</span>
-    </div> -->
+    </div>
     <div id="info-box-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
         <div id="info-box" class="modal" onclick="event.stopPropagation()">
             <div>
@@ -555,7 +555,7 @@
     map.addControl(geolocateControl, 'bottom-right');
 
     let showingDirections = false;
-    let showingDirectionsSection = false;
+    let showingDirectionsSection = true;
 
     let contextMenuPopup = null;
     let startMarker = null;
@@ -564,21 +564,6 @@
     let startLocation = null;
     let endLocation = null;
     let brouterRoute = null;
-
-    const directionContol = new MapboxDirections({
-        accessToken: mapboxgl.accessToken,
-        profile: "mapbox/cycling",
-        styles: directionsStyling,
-        interactive: false,
-        controls: {
-            profileSwitcher: false,
-
-        },
-        geocoder: {
-            bbox: "-81,34,-76,37", // bounding box for search results
-            proximity: "-78.6397933959961,35.77966399144513",
-        }
-    })
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -643,9 +628,6 @@
         addMapSources();
 
         addMapLayers();
-
-        // We need to re-add the directionControl on a style change or the line won't work
-        map.addControl(directionContol, 'top-left');
 
         // After the map has started loading and all the layers have been added
         // we want to disable any layers the user previously removed
@@ -1284,29 +1266,20 @@
         var currentStyle = getCookie("mapStyle");
         if (layerId === currentStyle) return;
 
-        // We need to remove the direction control before the style changes or it will break
-        if (showingDirectionsSection) {
-            toggleDirectionSection();
-        }
-        directionContol.removeRoutes();
-        map.removeControl(directionContol);
-
         setCookie("mapStyle", layerId, 1000);
         map.setStyle('mapbox://styles/mapbox/' + layerId);
     }
 
-    function toggleDirectionSection() { // TODO: remove if not needed
+    function toggleDirectionSection() {
         if (showingDirectionsSection) {
-            document.getElementsByClassName('mapboxgl-ctrl-directions')[0].style.display = 'none';
-            document.getElementById('show-directions-container').style.display = 'block';
+            document.getElementById('direction-search-container').style.display = 'none';
             document.getElementById('direction-buttons').style.display = 'none';
-            directionContol.interactive(false);
+            document.getElementById('show-directions-container').style.display = 'block';
             showingDirectionsSection = false;
         } else {
-            document.getElementsByClassName('mapboxgl-ctrl-directions')[0].style.display = 'block';
-            document.getElementById('show-directions-container').style.display = 'none';
+            document.getElementById('direction-search-container').style.display = 'block';
             document.getElementById('direction-buttons').style.display = 'block';
-            directionContol.interactive(true);
+            document.getElementById('show-directions-container').style.display = 'none';
             showingDirectionsSection = true;
         }
     }
@@ -1319,13 +1292,12 @@
         };
         navigator.geolocation.getCurrentPosition(
             (geoPos) => {
-                var currPosition = [geoPos.coords.longitude, geoPos.coords.latitude];
-                directionContol.setOrigin(currPosition);
+                setStartLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude)
             },
             (err) => {
                 console.warn("Error finding position: " + err.message);
                 if (lastFoundPosition) {
-                    directionContol.setOrigin(lastFoundPosition);
+                    setStartLocationLngLat(lastFoundPosition[0],lastFoundPosition[1])
                 };
                 if (err.code == 1) {
                     window.alert("Access to the devices location was blocked, please enable to use location services.")
@@ -1359,17 +1331,21 @@
       const input1 = document.getElementById(startSearchBoxId);
       const input2 = document.getElementById(endSearchBoxId);
 
-      const autocomplete1 = new google.maps.places.Autocomplete(input1);
-      const autocomplete2 = new google.maps.places.Autocomplete(input2);
-
       const bounds = new google.maps.LatLngBounds(
         new google.maps.LatLng(boundingBox.southwestCorner.lat, boundingBox.southwestCorner.lng),
         new google.maps.LatLng(boundingBox.northeastCorner.lat, boundingBox.northeastCorner.lng)
       );
 
-      // Bias the search to within bounds
-      autocomplete1.setBounds(bounds);
-      autocomplete2.setBounds(bounds);
+      // https://developers.google.com/maps/documentation/javascript/place-autocomplete#constraining-autocomplete
+      const autocompleteOptions = {
+        bounds: bounds,
+        componentRestrictions: { country: "us" },
+        fields: ["geometry"],
+        strictBounds: false,
+      };
+
+      const autocomplete1 = new google.maps.places.Autocomplete(input1, autocompleteOptions);
+      const autocomplete2 = new google.maps.places.Autocomplete(input2, autocompleteOptions);
 
       // Listen for place changes
       autocomplete1.addListener('place_changed', () => handlePlaceChange(autocomplete1, startSearchBoxId));
@@ -1485,7 +1461,7 @@
         closeContextMenuPopup();
 
         const popupHtml = `
-        <div onClick=closeContextMenuPopup()>
+        <div id="context-menu-popup" onClick=closeContextMenuPopup()>
             <p onClick=setStartLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as Start</p>
             <hr>
             <p onClick=setEndLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as End</p>
