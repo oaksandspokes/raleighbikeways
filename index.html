@@ -49,12 +49,6 @@
     <div id="style-icon-container" onclick="document.getElementById('map-style-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">layers</i>
     </div>
-    <div id="direction-buttons">
-        <!-- <i class="material-icons md-36 md-light black-border noselect" id="curr-location-nav"
-            onclick="setNavOrigin()">my_location</i> -->
-        <!-- <i class=" material-icons md-36 md-light black-border noselect"
-            onclick="toggleDirectionSection()">visibility_off</i> -->
-    </div>
     <div id="direction-search-container">
         <div>
           <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
@@ -1276,12 +1270,10 @@
     function toggleDirectionSection() {
         if (showingDirectionsSection) {
             document.getElementById('direction-search-container').style.display = 'none';
-            document.getElementById('direction-buttons').style.display = 'none';
             document.getElementById('show-directions-container').style.display = 'block';
             showingDirectionsSection = false;
         } else {
             document.getElementById('direction-search-container').style.display = 'block';
-            document.getElementById('direction-buttons').style.display = 'block';
             document.getElementById('show-directions-container').style.display = 'none';
             showingDirectionsSection = true;
         }

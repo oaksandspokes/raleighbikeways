@@ -88,14 +88,6 @@ body {
     visibility: visible;
 }
 
-#direction-buttons {
-    position: relative;
-    z-index: 5;
-    margin-top: 98px;
-    margin-left: 36px;
-    width: fit-content;
-}
-
 #show-directions-container {
     position: relative;
     z-index: 5;
