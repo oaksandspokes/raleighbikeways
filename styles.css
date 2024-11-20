@@ -49,25 +49,42 @@ body {
     margin-bottom: 0px;
 }
 
-.clear-btn {
-    position: absolute;
-    right: 12px;
+.search-btn {
     background: white;
-    border: none;
-    cursor: pointer;
-    font-size: 24px;
     width: 24px;
-    height: 23px;
-    margin-top: 1.5px;
-    color: #4b4b4b;
+    height: 24px;
     visibility: hidden;
+    margin-top: 1.5px;
+    cursor: pointer;
+    border: none;
+    position: absolute;
+    align-content: center;
+}
+
+.search-btn:hover {
+    background: #ccc;
+}
+
+.clear-btn {
+    right: 12px;
+    font-size: 20px;
+    color: #4b4b4b;
   }
 
   .clear-btn:hover {
     color: #000;
   }
 
-  #direction-search-container:focus-within .clear-btn{
+  .curr-location-nav {
+    right: 36px;
+    padding-left: 3px;
+  }
+
+#direction-search-container:focus-within .clear-btn{
+    visibility: visible;
+}
+
+#direction-search-container:focus-within .curr-location-nav{
     visibility: visible;
 }
 
