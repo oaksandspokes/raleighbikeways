@@ -52,8 +52,8 @@
     <div id="direction-buttons">
         <i class="material-icons md-36 md-light black-border noselect" id="curr-location-nav"
             onclick="setNavOrigin()">my_location</i>
-        <i class=" material-icons md-36 md-light black-border noselect"
-            onclick="toggleDirectionSection()">visibility_off</i>
+        <!-- <i class=" material-icons md-36 md-light black-border noselect"
+            onclick="toggleDirectionSection()">visibility_off</i> -->
     </div>
     <div id="direction-search-container">
         <div>
@@ -1500,7 +1500,7 @@
                 });
             });
 
-            map.fitBounds(bounds, { padding: 40 });
+            map.fitBounds(bounds, { padding: {top: 120, bottom: 40, left: 40, right: 40} });
 
             map.addSource(sources.BROUTER_ROUTER, {
             'type': 'geojson',
