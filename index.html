@@ -58,11 +58,14 @@
     <div id="direction-search-container">
         <div>
           <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
-          <button class="clear-btn" onclick="clearInput('startSearchBox')">&times;</button>
+          <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button>
+          <button class="curr-location-nav search-btn" onclick="setNavOrigin()">
+            <i class="material-icons md-18 md-dark noselect">my_location</i>
+          </button>
         </div>
         <div>
           <input class="search-box search-box-last" id="endSearchBox" type="text" placeholder="End Location" />
-          <button class="clear-btn" onclick="clearInput('endSearchBox')">&times;</button>
+          <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button>
         </div>   
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
