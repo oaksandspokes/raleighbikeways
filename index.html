@@ -52,14 +52,21 @@
     <div id="direction-search-container">
         <div>
           <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
-          <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button>
-          <button class="curr-location-nav search-btn" onclick="setNavOrigin()">
-            <i class="material-icons md-18 md-dark noselect">my_location</i>
-          </button>
+          <span class="top-search-buttons">
+            <button class="curr-location-nav search-btn" onclick="setNavOrigin(false)">
+                <i class="material-icons md-18 md-dark noselect">my_location</i>
+              </button>
+              <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button>
+          </span>
         </div>
         <div>
           <input class="search-box search-box-last" id="endSearchBox" type="text" placeholder="End Location" />
-          <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button>
+          <span class="bottom-search-buttons">
+            <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button>
+            <button class="curr-location-nav search-btn" onclick="setNavOrigin(true)">
+                <i class="material-icons md-18 md-dark noselect">my_location</i>
+            </button>
+          </span>
         </div>   
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
@@ -561,6 +568,7 @@
     let startLocation = null;
     let endLocation = null;
     let brouterRoute = null;
+    let brouterCustomProfile = null;
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -1279,7 +1287,7 @@
         }
     }
 
-    function setNavOrigin() {
+    function setNavOrigin(setFinish) {
         var options = {
             enableHighAccuracy: true,
             timeout: 5000,
@@ -1287,7 +1295,12 @@
         };
         navigator.geolocation.getCurrentPosition(
             (geoPos) => {
-                setStartLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude)
+                if (setFinish) {
+                    setEndLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude);
+                } else {
+                    setStartLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude);
+                }
+
             },
             (err) => {
                 console.warn("Error finding position: " + err.message);
@@ -1360,18 +1373,18 @@
       };
 
       if (inputId === startSearchBoxId) {
-        setStartLocation(location);
+        setStartLocation(location, false);
       } else if (inputId === endSearchBoxId) {
-        setEndLocation(location);
+        setEndLocation(location, false);
       }
     }
 
-    function setStartLocation(location) {
+    function setStartLocation(location, setLatLongText) {
         startLocation = location;
 
         const searchBox = document.getElementById(startSearchBoxId);
-        if (searchBox.value === '') {
-            searchBox.value = `${location.lng.toString().slice(0,8)},${location.lat.toString().slice(0,8)}`;
+        if (searchBox.value === '' || setLatLongText) {
+            searchBox.value = `${location.lng.toString().slice(0,8)}, ${location.lat.toString().slice(0,8)}`;
         }
 
         if (startMarker) {
@@ -1388,15 +1401,15 @@
     }
 
     function setStartLocationLngLat(lng, lat) {
-        setStartLocation({'lng': lng, 'lat': lat});
+        setStartLocation({'lng': lng, 'lat': lat}, true);
     }
 
-    function setEndLocation(location) {
+    function setEndLocation(location, setLatLongText) {
         endLocation = location;
 
         const searchBox = document.getElementById(endSearchBoxId);
-        if (searchBox.value === '') {
-            searchBox.value = `${location.lng.toString().slice(0,8)},${location.lat.toString().slice(0,8)}`;
+        if (searchBox.value === '' || setLatLongText) {
+            searchBox.value = `${location.lng.toString().slice(0,8)}, ${location.lat.toString().slice(0,8)}`;
         }
 
         if (endMarker) {
@@ -1413,7 +1426,7 @@
     }
 
     function setEndLocationLngLat(lng, lat) {
-        setEndLocation({'lng': lng, 'lat': lat});
+        setEndLocation({'lng': lng, 'lat': lat}, true);
     }
 
     function clearInput(inputId) {
@@ -1436,9 +1449,14 @@
     }
 
     async function fetchRouteFromBRouter(loc1, loc2) {
-      const brouterUrl = `https://brouter.de/brouter?lonlats=${loc1.lng},${loc1.lat}|${loc2.lng},${loc2.lat}&profile=racebike-verylowtraffic&alternativeidx=0&format=geojson`;
-
       try {
+        const profileName = await setBrouterProfile();
+        if (!profileName) {
+            throw new Error(`No profile to use for navigation`);
+        }
+
+        const brouterUrl = `https://brouter.de/brouter?lonlats=${loc1.lng},${loc1.lat}|${loc2.lng},${loc2.lat}&profile=${profileName}&alternativeidx=0&format=geojson`;
+
         const response = await fetch(brouterUrl);
         if (!response.ok) {
           console.error('Failed to fetch route from BRouter:', response.statusText);
@@ -1448,8 +1466,43 @@
         const geojson = await response.json();
         handleGeoJsonResponse(geojson);
       } catch (error) {
+        brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
         console.error('Error fetching route:', error);
+        alert(`There was an error fetching the recommended route :(`);
       }
+    }
+
+    async function setBrouterProfile() {
+        const brouterProfileUrl = `https://brouter.de/brouter/profile`;
+
+        if (!brouterCustomProfile) {
+            try {
+                const getProfileFileResponse = await fetch('/brouter-profiles/standard.brf');
+                
+                if (!getProfileFileResponse.ok) {
+                    throw new Error(`Failed to fetch profile file: ${getProfileFileResponse.statusText}`);
+                }
+
+                const profileFileData = await getProfileFileResponse.text();
+
+                const setProfileResponse = await fetch(brouterProfileUrl, {
+                    method: 'POST',
+                    body: profileFileData,
+                });
+
+                if (!setProfileResponse.ok) {
+                    throw new Error(`Failed to upload profile: ${setProfileResponse.statusText}`);
+                }
+
+                const profileResponseJson = await setProfileResponse.json();
+                brouterCustomProfile = profileResponseJson.profileid;
+            } catch (error) {
+                console.error('Error uploading profile:', error);
+                brouterCustomProfile = null;
+            }
+        }
+
+        return brouterCustomProfile;
     }
 
     function showContextMenuPopupOnPoint(coordinates) {
@@ -1479,7 +1532,6 @@
     function handleGeoJsonResponse(geojson) {
         brouterRoute = geojson;
         setBrouterRoute(geojson);
-        console.log('BRouter GeoJSON Response:', geojson);
     }
 
     function setBrouterRoute() {
@@ -1530,14 +1582,6 @@
             map.removeSource(id);
         }
     }
-
-    // Listen to events for demonstration
-    document.addEventListener('locationSelected', (e) => {
-      console.log('Location selected:', e.detail);
-    });
-    document.addEventListener('locationCleared', (e) => {
-      console.log('Location cleared:', e.detail);
-    });
 
     // Load the autocomplete functionality once the script loads
     window.onload = initAutocomplete;

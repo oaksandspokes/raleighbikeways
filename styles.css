@@ -54,7 +54,6 @@ body {
     width: 24px;
     height: 24px;
     visibility: hidden;
-    margin-top: 1.5px;
     cursor: pointer;
     border: none;
     position: absolute;
@@ -66,7 +65,7 @@ body {
 }
 
 .clear-btn {
-    right: 12px;
+    right: 0px;
     font-size: 20px;
     color: #4b4b4b;
   }
@@ -76,9 +75,19 @@ body {
   }
 
   .curr-location-nav {
-    right: 36px;
+    right: 24px;
     padding-left: 3px;
   }
+
+.top-search-buttons {
+    top: 12px;
+    position: absolute;
+}
+
+.bottom-search-buttons {
+    top: 50px;
+    position: absolute;
+}
 
 #direction-search-container:focus-within .clear-btn{
     visibility: visible;
