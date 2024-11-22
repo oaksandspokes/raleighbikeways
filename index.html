@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@40,400,0,0&icon_names=bedtime_off" />
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.js'></script>
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.css' rel='stylesheet' />
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
@@ -46,7 +47,8 @@
     <div id="loader-container">
         <div class="loader"></div>
         <div class="loader-background"></div>
-    </div>      
+    </div>
+    <span id="no-lock-icon" onclick="toggleWakeLock()" class="material-icons md-36 material-symbols-outlined noselect">bedtime_off</span>
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">info</i>
     </div>
@@ -573,6 +575,12 @@
     let endLocation = null;
     let brouterRoute = null;
     let brouterCustomProfile = null;
+    let wakeLock = null;
+    let wakeLockSupported = false;
+
+    if ("wakeLock" in navigator) {
+        wakeLockSupported = true;
+    }
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -1598,6 +1606,30 @@
         const displayValue = showLoader ? 'block' : 'none';
 
         loaderContainer.style.display = displayValue;
+    }
+
+    async function toggleWakeLock() {
+        if (!wakeLockSupported) {
+            console.error("tried to get wakelock on unsupported device");
+            return;
+        }
+
+        if (!wakeLock) {
+            try {
+            wakeLock = await navigator.wakeLock.request("screen");
+            document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
+            console.log("got wake lock");
+            } catch (err) {
+            // The Wake Lock request has failed - usually system related, such as battery.
+            console.error(`failed to get wake lock: ${err.name}, ${err.message}`);
+            }
+        } else {
+            wakeLock.release().then(() => {
+                wakeLock = null;
+                document.getElementById("no-lock-icon").style.color = 'white';
+                console.log("released wake lock");
+            })
+        }
     }
 
     // Load the autocomplete functionality once the script loads

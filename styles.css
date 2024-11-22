@@ -417,6 +417,17 @@ Otherwise the parent z-index makes things difficult */
     font-size: 13px;
 }
 
+#no-lock-icon {
+    left: 10px;
+    bottom: 30px;
+    position: absolute;
+    z-index: 5;
+    background-color: rgba(0, 0, 0, 0.411);
+    border-radius: 50%;
+    padding: 5px;
+    color: rgba(255, 255, 255, 1);
+}
+
 .loader {
     background-color: #3498db;
     width: 220px;
