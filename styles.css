@@ -416,3 +416,39 @@ Otherwise the parent z-index makes things difficult */
 #context-menu-popup {
     font-size: 13px;
 }
+
+.loader {
+    background-color: #3498db;
+    width: 220px;
+    -webkit-animation: movebar 1s linear infinite; /* Safari */
+    animation: movebar 1s linear infinite;
+    position: absolute;
+    z-index:1000;
+    height: 8px;
+  }
+  
+  .loader-background {
+      width: 100%;
+      background-color: rgba(211, 211, 211, 0.411);
+      position: absolute;
+      z-index:999;
+      height: 8px;
+  }
+  
+  #loader-container {
+      width: 100%;
+      position: absolute;
+      top: 0px;
+      display: none;
+  }
+
+/* Safari */
+@-webkit-keyframes movebar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100vw); }
+  }
+  
+  @keyframes movebar {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100vw); }
+  }
