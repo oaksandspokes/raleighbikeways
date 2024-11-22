@@ -43,6 +43,10 @@
             <i class="material-icons md-36 noselect">info</i>
         </div>
     </div> -->
+    <div id="loader-container">
+        <div class="loader"></div>
+        <div class="loader-background"></div>
+    </div>      
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">info</i>
     </div>
@@ -1293,8 +1297,10 @@
             timeout: 5000,
             maximumAge: 1000,
         };
+        toggleLoader(true);
         navigator.geolocation.getCurrentPosition(
             (geoPos) => {
+                toggleLoader(false);
                 if (setFinish) {
                     setEndLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude);
                 } else {
@@ -1303,6 +1309,7 @@
 
             },
             (err) => {
+                toggleLoader(false);
                 console.warn("Error finding position: " + err.message);
                 if (lastFoundPosition) {
                     setStartLocationLngLat(lastFoundPosition[0],lastFoundPosition[1])
@@ -1450,6 +1457,7 @@
 
     async function fetchRouteFromBRouter(loc1, loc2) {
       try {
+        toggleLoader(true);
         const profileName = await setBrouterProfile();
         if (!profileName) {
             throw new Error(`No profile to use for navigation`);
@@ -1459,7 +1467,7 @@
 
         const response = await fetch(brouterUrl);
         if (!response.ok) {
-          console.error('Failed to fetch route from BRouter:', response.statusText);
+          throw new Error(`Error response from BRouter get route call: ${response.statusText}`);
           return;
         }
 
@@ -1468,7 +1476,9 @@
       } catch (error) {
         brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
         console.error('Error fetching route:', error);
-        alert(`There was an error fetching the recommended route :(`);
+        alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
+      } finally {
+        toggleLoader(false);
       }
     }
 
@@ -1581,6 +1591,13 @@
         if (map.getSource(id)) {
             map.removeSource(id);
         }
+    }
+
+    function toggleLoader(showLoader) {
+        const loaderContainer = document.getElementById('loader-container');
+        const displayValue = showLoader ? 'block' : 'none';
+
+        loaderContainer.style.display = displayValue;
     }
 
     // Load the autocomplete functionality once the script loads
