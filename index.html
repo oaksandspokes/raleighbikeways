@@ -26,6 +26,7 @@
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-142487885-3"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBzSLFiLPIbJ6QpoBcD9DnKucAXkLco_p0&libraries=places"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
@@ -42,17 +43,38 @@
             <i class="material-icons md-36 noselect">info</i>
         </div>
     </div> -->
+    <div id="loader-container">
+        <div class="loader"></div>
+        <div class="loader-background"></div>
+    </div>      
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">info</i>
     </div>
     <div id="style-icon-container" onclick="document.getElementById('map-style-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">layers</i>
     </div>
-    <div id="direction-buttons" style="display: none;">
-        <i class="material-icons md-36 md-light black-border noselect" id="curr-location-nav"
-            onclick="setNavOrigin()">my_location</i>
-        <i class=" material-icons md-36 md-light black-border noselect"
-            onclick="toggleDirectionSection()">visibility_off</i>
+    <div id="direction-search-container">
+        <div>
+          <input class="search-box" id="startSearchBox" type="text" placeholder="Start Location" />
+          <span class="top-search-buttons">
+            <button class="curr-location-nav search-btn" onclick="setNavOrigin(false)">
+                <i class="material-icons md-18 md-dark noselect">my_location</i>
+              </button>
+              <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button>
+          </span>
+        </div>
+        <div>
+          <input class="search-box search-box-last" id="endSearchBox" type="text" placeholder="End Location" />
+          <span class="bottom-search-buttons">
+            <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button>
+            <button class="curr-location-nav search-btn" onclick="setNavOrigin(true)">
+                <i class="material-icons md-18 md-dark noselect">my_location</i>
+            </button>
+          </span>
+        </div>   
+        <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
+            <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
+        </button>
     </div>
     <div id="show-directions-container">
         <i class=" material-icons md-48 md-light black-border noselect"
@@ -354,7 +376,21 @@
 
     mapboxgl.accessToken = 'pk.eyJ1Ijoib2Frc2FuZHNwb2tlcyIsImEiOiJjazR1M2Ztc3cwZXl2M21ub3p6eXF3b2txIn0.BNI4-QbP-094byFujTJAuQ'
 
-    let allWaterGaugesUrl = 'https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=-79.189453,35.4472460,-78.22265,36.11791&siteStatus=all'
+    const boundingBox = {
+        'southwestCorner' : {
+            'lat': '35.4472460',
+            'lng': '-79.189453'
+        },
+        'northeastCorner' : {
+            'lat': '36.11791',
+            'lng': '-78.22265',
+        }
+    }
+
+    const startSearchBoxId = 'startSearchBox';
+    const endSearchBoxId = 'endSearchBox';
+
+    let allWaterGaugesUrl = `https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=${boundingBox.southwestCorner.lng},${boundingBox.southwestCorner.lat},${boundingBox.northeastCorner.lng},${boundingBox.northeastCorner.lat}&siteStatus=all`
     let specificGaugesUrl = 'https://waterservices.usgs.gov/nwis/iv/?format=json&sites={0}&siteStatus=active'
 
     const colors = {
@@ -388,7 +424,7 @@
         CH_CARR_FACILITIES_DASHED: 'chapel-hill-carrboro-facilities-dashed',
         BIKE_PARKING: "bike-parking-osm",
         WATER_GAUGE: 'water-gauges',
-
+        BROUTER_ROUTE: 'brouter-route-layer',
     }
 
     const sources = {
@@ -407,6 +443,7 @@
         CH_CARRBORO: 'chapel-hill-carrboro',
         OSM: 'osm-data',
         USGS_WATER_GAUGES: 'usgs-water-gauges',
+        BROUTER_ROUTER: 'brouter-route-source',
     }
 
     // Custom styling for the direction line
@@ -487,12 +524,18 @@
         zoom: lastZoom
     });
 
+    map.dragRotate.disable(); // we are using right click for something else
+
     map.on('idle', () => {
         var mapCenter = map.getCenter();
         setCookie("lastCameraLng", mapCenter.lng, 1000);
         setCookie("lastCameraLat", mapCenter.lat, 1000);
         setCookie("lastZoom", map.getZoom(), 1000);
-    })
+    });
+
+    map.on('contextmenu', event => {
+        showContextMenuPopupOnPoint(event.lngLat);
+    });
 
     map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
@@ -520,22 +563,16 @@
     map.addControl(geolocateControl, 'bottom-right');
 
     let showingDirections = false;
-    let showingDirectionsSection = false;
+    let showingDirectionsSection = true;
 
-    const directionContol = new MapboxDirections({
-        accessToken: mapboxgl.accessToken,
-        profile: "mapbox/cycling",
-        styles: directionsStyling,
-        interactive: false,
-        controls: {
-            profileSwitcher: false,
+    let contextMenuPopup = null;
+    let startMarker = null;
+    let endMarker = null;
 
-        },
-        geocoder: {
-            bbox: "-81,34,-76,37", // bounding box for search results
-            proximity: "-78.6397933959961,35.77966399144513",
-        }
-    })
+    let startLocation = null;
+    let endLocation = null;
+    let brouterRoute = null;
+    let brouterCustomProfile = null;
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -601,9 +638,6 @@
 
         addMapLayers();
 
-        // We need to re-add the directionControl on a style change or the line won't work
-        map.addControl(directionContol, 'top-left');
-
         // After the map has started loading and all the layers have been added
         // we want to disable any layers the user previously removed
         if (getCookie("hasOpened")) {
@@ -651,6 +685,10 @@
             // We default the programmed bike infra to not show
             legendToggleProgrammedLayer(false);
             document.getElementById('programmed-checkbox').checked = false;
+        }
+
+        if (brouterRoute) {
+            setBrouterRoute(); // redisplay route if it exists
         }
 
         map.resize();
@@ -1237,48 +1275,44 @@
         var currentStyle = getCookie("mapStyle");
         if (layerId === currentStyle) return;
 
-        // We need to remove the direction control before the style changes or it will break
-        if (showingDirectionsSection) {
-            toggleDirectionSection();
-        }
-        directionContol.removeRoutes();
-        map.removeControl(directionContol);
-
         setCookie("mapStyle", layerId, 1000);
         map.setStyle('mapbox://styles/mapbox/' + layerId);
     }
 
     function toggleDirectionSection() {
         if (showingDirectionsSection) {
-            document.getElementsByClassName('mapboxgl-ctrl-directions')[0].style.display = 'none';
+            document.getElementById('direction-search-container').style.display = 'none';
             document.getElementById('show-directions-container').style.display = 'block';
-            document.getElementById('direction-buttons').style.display = 'none';
-            directionContol.interactive(false);
             showingDirectionsSection = false;
         } else {
-            document.getElementsByClassName('mapboxgl-ctrl-directions')[0].style.display = 'block';
+            document.getElementById('direction-search-container').style.display = 'block';
             document.getElementById('show-directions-container').style.display = 'none';
-            document.getElementById('direction-buttons').style.display = 'block';
-            directionContol.interactive(true);
             showingDirectionsSection = true;
         }
     }
 
-    function setNavOrigin() {
+    function setNavOrigin(setFinish) {
         var options = {
             enableHighAccuracy: true,
             timeout: 5000,
             maximumAge: 1000,
         };
+        toggleLoader(true);
         navigator.geolocation.getCurrentPosition(
             (geoPos) => {
-                var currPosition = [geoPos.coords.longitude, geoPos.coords.latitude];
-                directionContol.setOrigin(currPosition);
+                toggleLoader(false);
+                if (setFinish) {
+                    setEndLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude);
+                } else {
+                    setStartLocationLngLat(geoPos.coords.longitude, geoPos.coords.latitude);
+                }
+
             },
             (err) => {
+                toggleLoader(false);
                 console.warn("Error finding position: " + err.message);
                 if (lastFoundPosition) {
-                    directionContol.setOrigin(lastFoundPosition);
+                    setStartLocationLngLat(lastFoundPosition[0],lastFoundPosition[1])
                 };
                 if (err.code == 1) {
                     window.alert("Access to the devices location was blocked, please enable to use location services.")
@@ -1306,6 +1340,268 @@
         }
         return null;
     }
+
+    // Initialize autocomplete fields
+    function initAutocomplete() {
+      const input1 = document.getElementById(startSearchBoxId);
+      const input2 = document.getElementById(endSearchBoxId);
+
+      const bounds = new google.maps.LatLngBounds(
+        new google.maps.LatLng(boundingBox.southwestCorner.lat, boundingBox.southwestCorner.lng),
+        new google.maps.LatLng(boundingBox.northeastCorner.lat, boundingBox.northeastCorner.lng)
+      );
+
+      // https://developers.google.com/maps/documentation/javascript/place-autocomplete#constraining-autocomplete
+      const autocompleteOptions = {
+        bounds: bounds,
+        componentRestrictions: { country: "us" },
+        fields: ["geometry"],
+        strictBounds: false,
+      };
+
+      const autocomplete1 = new google.maps.places.Autocomplete(input1, autocompleteOptions);
+      const autocomplete2 = new google.maps.places.Autocomplete(input2, autocompleteOptions);
+
+      // Listen for place changes
+      autocomplete1.addListener('place_changed', () => handlePlaceChange(autocomplete1, startSearchBoxId));
+      autocomplete2.addListener('place_changed', () => handlePlaceChange(autocomplete2, endSearchBoxId));
+    }
+
+    function handlePlaceChange(autocomplete, inputId) {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) {
+        console.warn(`No details available for input: ${inputId}`);
+        return;
+      }
+
+      const location = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
+
+      if (inputId === startSearchBoxId) {
+        setStartLocation(location, false);
+      } else if (inputId === endSearchBoxId) {
+        setEndLocation(location, false);
+      }
+    }
+
+    function setStartLocation(location, setLatLongText) {
+        startLocation = location;
+
+        const searchBox = document.getElementById(startSearchBoxId);
+        if (searchBox.value === '' || setLatLongText) {
+            searchBox.value = `${location.lng.toString().slice(0,8)}, ${location.lat.toString().slice(0,8)}`;
+        }
+
+        if (startMarker) {
+            startMarker.remove();
+        }
+
+        startMarker = new mapboxgl.Marker({color: 'green'})
+            .setLngLat(startLocation)
+            .addTo(map)
+        
+        if (startLocation && endLocation) {
+            fetchRouteFromBRouter(startLocation, endLocation);
+        }
+    }
+
+    function setStartLocationLngLat(lng, lat) {
+        setStartLocation({'lng': lng, 'lat': lat}, true);
+    }
+
+    function setEndLocation(location, setLatLongText) {
+        endLocation = location;
+
+        const searchBox = document.getElementById(endSearchBoxId);
+        if (searchBox.value === '' || setLatLongText) {
+            searchBox.value = `${location.lng.toString().slice(0,8)}, ${location.lat.toString().slice(0,8)}`;
+        }
+
+        if (endMarker) {
+            endMarker.remove();
+        }
+
+        endMarker = new mapboxgl.Marker({color: 'red'})
+            .setLngLat(endLocation)
+            .addTo(map)
+        
+        if (startLocation && endLocation) {
+            fetchRouteFromBRouter(startLocation, endLocation);
+        }
+    }
+
+    function setEndLocationLngLat(lng, lat) {
+        setEndLocation({'lng': lng, 'lat': lat}, true);
+    }
+
+    function clearInput(inputId) {
+      const input = document.getElementById(inputId);
+      input.value = '';
+
+      if (inputId === startSearchBoxId) {
+        startLocation = null;
+        if (startMarker) {
+            startMarker.remove();
+        }
+      } else if (inputId === endSearchBoxId) {
+        endLocation = null;
+        if (endMarker) {
+            endMarker.remove();
+        }
+      }
+      brouterRoute = null;
+      setBrouterRoute();
+    }
+
+    async function fetchRouteFromBRouter(loc1, loc2) {
+      try {
+        toggleLoader(true);
+        const profileName = await setBrouterProfile();
+        if (!profileName) {
+            throw new Error(`No profile to use for navigation`);
+        }
+
+        const brouterUrl = `https://brouter.de/brouter?lonlats=${loc1.lng},${loc1.lat}|${loc2.lng},${loc2.lat}&profile=${profileName}&alternativeidx=0&format=geojson`;
+
+        const response = await fetch(brouterUrl);
+        if (!response.ok) {
+          throw new Error(`Error response from BRouter get route call: ${response.statusText}`);
+          return;
+        }
+
+        const geojson = await response.json();
+        handleGeoJsonResponse(geojson);
+      } catch (error) {
+        brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
+        console.error('Error fetching route:', error);
+        alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
+      } finally {
+        toggleLoader(false);
+      }
+    }
+
+    async function setBrouterProfile() {
+        const brouterProfileUrl = `https://brouter.de/brouter/profile`;
+
+        if (!brouterCustomProfile) {
+            try {
+                const getProfileFileResponse = await fetch('/brouter-profiles/standard.brf');
+                
+                if (!getProfileFileResponse.ok) {
+                    throw new Error(`Failed to fetch profile file: ${getProfileFileResponse.statusText}`);
+                }
+
+                const profileFileData = await getProfileFileResponse.text();
+
+                const setProfileResponse = await fetch(brouterProfileUrl, {
+                    method: 'POST',
+                    body: profileFileData,
+                });
+
+                if (!setProfileResponse.ok) {
+                    throw new Error(`Failed to upload profile: ${setProfileResponse.statusText}`);
+                }
+
+                const profileResponseJson = await setProfileResponse.json();
+                brouterCustomProfile = profileResponseJson.profileid;
+            } catch (error) {
+                console.error('Error uploading profile:', error);
+                brouterCustomProfile = null;
+            }
+        }
+
+        return brouterCustomProfile;
+    }
+
+    function showContextMenuPopupOnPoint(coordinates) {
+        closeContextMenuPopup();
+
+        const popupHtml = `
+        <div id="context-menu-popup" onClick=closeContextMenuPopup()>
+            <p onClick=setStartLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as Start</p>
+            <hr>
+            <p onClick=setEndLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as End</p>
+        </div>
+        `
+
+        contextMenuPopup = new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(popupHtml)
+            .addTo(map);
+    }
+
+    function closeContextMenuPopup() {
+        if (contextMenuPopup) {
+            contextMenuPopup.remove();
+            contextMenuPopup = null;
+        }
+    }
+
+    function handleGeoJsonResponse(geojson) {
+        brouterRoute = geojson;
+        setBrouterRoute(geojson);
+    }
+
+    function setBrouterRoute() {
+        removeLayer(layers.BROUTER_ROUTE);
+        removeSource(sources.BROUTER_ROUTER);
+
+        if (brouterRoute) {
+            var bounds = new mapboxgl.LngLatBounds();
+
+            brouterRoute.features.forEach(function(feature) {
+                feature.geometry.coordinates.forEach(function(coord) {
+                    bounds.extend(coord);
+                });
+            });
+
+            map.fitBounds(bounds, { padding: {top: 120, bottom: 40, left: 40, right: 40} });
+
+            map.addSource(sources.BROUTER_ROUTER, {
+            'type': 'geojson',
+            'data': brouterRoute
+            });
+
+            map.addLayer({
+                'id': layers.BROUTER_ROUTE,
+                'type': 'line',
+                'source': sources.BROUTER_ROUTER,
+                'layout': {
+                    'line-join': 'round',
+                    'line-cap': 'round',
+                },
+                'paint': {
+                    'line-color': '#2c7bc9',
+                    'line-width': 10,
+                    'line-opacity': 0.75
+                }
+            });
+        }
+    }
+
+    function removeLayer(id) {
+        if (map.getLayer(id)) {
+            map.removeLayer(id);
+        }
+    }
+
+    function removeSource(id) {
+        if (map.getSource(id)) {
+            map.removeSource(id);
+        }
+    }
+
+    function toggleLoader(showLoader) {
+        const loaderContainer = document.getElementById('loader-container');
+        const displayValue = showLoader ? 'block' : 'none';
+
+        loaderContainer.style.display = displayValue;
+    }
+
+    // Load the autocomplete functionality once the script loads
+    window.onload = initAutocomplete;
 </script>
 
 </html>
