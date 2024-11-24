@@ -566,7 +566,8 @@
     });
 
     map.on('movestart', (event) => {
-        const fromResize = event.originalEvent && event.originalEvent.type === 'resize';
+        // If it was a zoom from a mapbox button, let's keep the following state active
+        const fromResize = event.originalEvent && event.originalEvent.currentTarget && event.originalEvent.currentTarget.className && event.originalEvent.currentTarget.className.includes('mapboxgl-ctrl-zoom');
         if (customFollowState === 'ACTIVE' && !fromResize && !event.trackingMove) {
             setTrackingText("Recenter");
             customFollowState = 'BACKGROUND';
@@ -1704,10 +1705,34 @@
             // non-Safari alpha increases counter clockwise around the z axis
             heading = deviceOrientationEvent.alpha * -1;
         }
-        updateMapOrientation(heading);
+        userRotationHeading = heading;
+        throttle(updateMapOrientation,20);
     }
 
-    function updateMapOrientation(heading) {
+    function throttle(fn, time) {
+        let pending = false;
+        let timerId = null;
+
+        const later = () => {
+            timerId = null;
+            if (pending) {
+                fn();
+                timerId = setTimeout(later, time);
+                pending = false;
+            }
+        };
+
+        return () => {
+            pending = true;
+            if (!timerId) {
+                later();
+            }
+            return timerId;
+        };
+    }
+
+    function updateMapOrientation() {
+        const heading = userRotationHeading;
         if (heading) {
             userRotationHeading = heading;
             userLocationMarker.setRotation(userRotationHeading);
