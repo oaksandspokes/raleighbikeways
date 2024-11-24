@@ -48,7 +48,10 @@
         <div class="loader"></div>
         <div class="loader-background"></div>
     </div>
-    <span id="no-lock-icon" onclick="toggleWakeLock()" class="material-icons md-36 material-symbols-outlined noselect">bedtime_off</span>
+    <div id="follow-location" onclick="toggleFollowLocation()">
+        <span id="no-lock-icon" class="material-icons md-36 md-light noselect">my_location</span>
+        <span id="follow-location-text">Follow Location</span>
+    </div>
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">info</i>
     </div>
@@ -544,22 +547,27 @@
     const geolocateControl = new mapboxgl.GeolocateControl({
         positionOptions: {
             enableHighAccuracy: true,
-            maximumAge: 1000,
+            maximumAge: 2000,
         },
-        trackUserLocation: true
+        trackUserLocation: true,
+        showUserHeading: true,
     })
 
     let lastFoundPosition;
 
     geolocateControl.on('geolocate', (geoPos) => {
         lastFoundPosition = [geoPos.coords.longitude, geoPos.coords.latitude];
-    })
+    });
 
     geolocateControl.on('error', (err) => {
         console.warn(err.message);
         if (err.code == 1) {
             window.alert("Geolocation permission was denied, please enable to use")
         }
+    });
+
+    geolocateControl.on('trackuserlocationend', () => {
+        handleUserLocationEnd();
     })
 
     map.addControl(geolocateControl, 'bottom-right');
@@ -695,9 +703,8 @@
             document.getElementById('programmed-checkbox').checked = false;
         }
 
-        if (brouterRoute) {
-            setBrouterRoute(); // redisplay route if it exists
-        }
+
+        setBrouterRoute();
 
         map.resize();
     });
@@ -1555,6 +1562,7 @@
     function setBrouterRoute() {
         removeLayer(layers.BROUTER_ROUTE);
         removeSource(sources.BROUTER_ROUTER);
+        setLocationTrackingStyle();
 
         if (brouterRoute) {
             var bounds = new mapboxgl.LngLatBounds();
@@ -1589,6 +1597,16 @@
         }
     }
 
+    // Use the custom location button if we have a route, otherwise use the default button
+    function setLocationTrackingStyle() {
+        const useCustomTrackingStyle = brouterRoute ? true : false;
+
+        document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0].style.display = useCustomTrackingStyle ? 'none' : 'block';
+        document.getElementById('follow-location').style.display = useCustomTrackingStyle ? 'block' : 'none';
+
+        
+    }
+
     function removeLayer(id) {
         if (map.getLayer(id)) {
             map.removeLayer(id);
@@ -1608,17 +1626,92 @@
         loaderContainer.style.display = displayValue;
     }
 
-    async function toggleWakeLock() {
+    async function toggleFollowLocation() {
+        switch (getTrackingState()) {
+            case 'OFF':
+                startTracking()
+                break;
+            case 'BACKGROUND':
+                recenterTracking();
+                break;
+            case 'ON':
+                finishTracking();
+                break;
+            default:
+                console.error('Unexpected tracking state: ' + getTrackingState());
+        }
+    }
+
+    async function startTracking() {
+        toggleWakeLock(true);
+        setTrackingText("Stop Following");
+        switch (getTrackingState()) {
+            case 'OFF':
+                geolocateControl.trigger();
+                break;
+            case 'BACKGROUND':
+                geolocateControl.trigger();
+                break;
+            case 'ON':
+                break;
+            default:
+                console.error('Unexpected tracking state: ' + getTrackingState());
+        }
+    }
+
+    async function recenterTracking() {
+        setTrackingText("Stop Following");
+        switch (getTrackingState()) {
+            case 'OFF':
+                geolocateControl.trigger();
+                break;
+            case 'BACKGROUND':
+                geolocateControl.trigger();
+                break;
+            case 'ON':
+                break;
+            default:
+                console.error('Unexpected tracking state: ' + getTrackingState());
+        }
+    }
+
+    async function finishTracking(params) {
+        toggleWakeLock(false);
+        setTrackingText("Follow Location");
+        switch (getTrackingState()) {
+            case 'OFF':
+                break;
+            case 'BACKGROUND':
+                geolocateControl.trigger();
+                geolocateControl.trigger();
+                break;
+            case 'ON':
+                geolocateControl.trigger();
+                break;
+            default:
+                console.error('Unexpected tracking state: ' + getTrackingState());
+        }
+    }
+
+    async function toggleWakeLock(shouldFollow) {
+        if (!!shouldFollow == !!wakeLock) {
+            // We are already in the desired state
+            console.log('already at correct wake lock status');
+            return;
+        }
+
         if (!wakeLockSupported) {
             console.error("tried to get wakelock on unsupported device");
             return;
         }
 
+        // Try and start location tracking
+
         if (!wakeLock) {
             try {
-            wakeLock = await navigator.wakeLock.request("screen");
-            document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
-            console.log("got wake lock");
+                wakeLock = await navigator.wakeLock.request("screen");
+                document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
+                console.log("got wake lock");
             } catch (err) {
             // The Wake Lock request has failed - usually system related, such as battery.
             console.error(`failed to get wake lock: ${err.name}, ${err.message}`);
@@ -1631,6 +1724,38 @@
             })
         }
     }
+
+    // Based on the internals of the geolocate controls
+    // https://github.com/mapbox/mapbox-gl-js/blob/4b358c3c66cad4f08ac137b6804393c29061ed8f/src/ui/control/geolocate_control.ts#L488
+    function getTrackingState() {
+        if (!geolocateControl || geolocateControl._watchState == 'OFF') {
+            return 'OFF';
+        } else if (geolocateControl._watchState == 'BACKGROUND') {
+            return 'BACKGROUND';
+        } else {
+            return 'ON';
+        }
+    }
+
+    function setTrackingText(text) {
+        document.getElementById('follow-location-text').textContent = text;
+    }
+
+    function handleUserLocationEnd() {
+        if (getTrackingState() == 'BACKGROUND') {
+            // This is the user moving the map which retains the dot but stops the map tracking
+            setTrackingText("Recenter")
+        } else {
+            // Do Nothing;
+        }
+    }
+
+    // If the wakelock is asked for, the user goes to another tab, then comes back, this will keep it active
+    document.addEventListener("visibilitychange", async () => {
+        if (wakeLock !== null && document.visibilityState === "visible") {
+            wakeLock = await navigator.wakeLock.request("screen");
+        }
+    });
 
     // Load the autocomplete functionality once the script loads
     window.onload = initAutocomplete;

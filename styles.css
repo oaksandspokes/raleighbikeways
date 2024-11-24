@@ -417,14 +417,24 @@ Otherwise the parent z-index makes things difficult */
     font-size: 13px;
 }
 
-#no-lock-icon {
+#follow-location {
     left: 10px;
     bottom: 30px;
     position: absolute;
     z-index: 5;
     background-color: rgba(0, 0, 0, 0.411);
-    border-radius: 50%;
-    padding: 5px;
+    border-radius: 5px;
+    padding: 10px;
+    color: white;
+    font-size: large;
+    font-weight: 600;
+}
+
+#follow-location span {
+    vertical-align: middle;
+}
+
+#no-lock-icon {
     color: rgba(255, 255, 255, 1);
 }
 
@@ -452,6 +462,8 @@ Otherwise the parent z-index makes things difficult */
       top: 0px;
       display: none;
   }
+
+
 
 /* Safari */
 @-webkit-keyframes movebar {
