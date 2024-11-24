@@ -547,7 +547,7 @@
     const geolocateControl = new mapboxgl.GeolocateControl({
         positionOptions: {
             enableHighAccuracy: true,
-            maximumAge: 2000,
+            maximumAge: 5000,
         },
         trackUserLocation: true
     })
@@ -1663,6 +1663,9 @@
         watchID = navigator.geolocation.watchPosition((position) => {
             lastFoundPosition = [position.coords.longitude, position.coords.latitude];
             moveOnPositionUpdate(position.coords.longitude, position.coords.latitude);
+        }, () => {},{
+            enableHighAccuracy: true,
+            maximumAge: 1000,
         });
         addDeviceOrientationListener();
         toggleWakeLock(true);
@@ -1705,10 +1708,13 @@
     }
 
     function updateMapOrientation(heading) {
-        if (heading && customFollowState === 'ACTIVE') {
+        if (heading) {
             userRotationHeading = heading;
-            map.jumpTo({bearing: heading}, {trackingMove: true});
             userLocationMarker.setRotation(userRotationHeading);
+
+            if (customFollowState === 'ACTIVE') {
+                map.jumpTo({bearing: heading}, {trackingMove: true});
+            }
         }
     }
 
