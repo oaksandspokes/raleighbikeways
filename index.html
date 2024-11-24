@@ -6,8 +6,8 @@
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@40,400,0,0&icon_names=bedtime_off" />
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.css' rel='stylesheet' />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <script src="mapbox-gl-directions.js">
     </script>
@@ -549,8 +549,7 @@
             enableHighAccuracy: true,
             maximumAge: 2000,
         },
-        trackUserLocation: true,
-        showUserHeading: true,
+        trackUserLocation: true
     })
 
     let lastFoundPosition;
@@ -566,9 +565,13 @@
         }
     });
 
-    geolocateControl.on('trackuserlocationend', () => {
-        handleUserLocationEnd();
-    })
+    map.on('movestart', (event) => {
+        const fromResize = event.originalEvent && event.originalEvent.type === 'resize';
+        if (customFollowState === 'ACTIVE' && !fromResize && !event.trackingMove) {
+            setTrackingText("Recenter");
+            customFollowState = 'BACKGROUND';
+        }
+    });
 
     map.addControl(geolocateControl, 'bottom-right');
 
@@ -585,6 +588,11 @@
     let brouterCustomProfile = null;
     let wakeLock = null;
     let wakeLockSupported = false;
+
+    let customFollowState = 'OFF'; // Can be OFF, ACTIVE, BACKGROUND
+    let watchID = null; // geolocation watch ID, needs to be cleared when we aren't using it
+    let userLocationMarker = null;
+    let userRotationHeading = 0;
 
     if ("wakeLock" in navigator) {
         wakeLockSupported = true;
@@ -1601,10 +1609,12 @@
     function setLocationTrackingStyle() {
         const useCustomTrackingStyle = brouterRoute ? true : false;
 
-        document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0].style.display = useCustomTrackingStyle ? 'none' : 'block';
-        document.getElementById('follow-location').style.display = useCustomTrackingStyle ? 'block' : 'none';
+        if (!useCustomTrackingStyle) {
+            customFollowState = 'OFF';
+        }
 
-        
+        document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0].style.display = useCustomTrackingStyle ? 'none' : 'block';
+        document.getElementById('follow-location').style.display = useCustomTrackingStyle ? 'block' : 'none'; 
     }
 
     function removeLayer(id) {
@@ -1627,70 +1637,111 @@
     }
 
     async function toggleFollowLocation() {
-        switch (getTrackingState()) {
+        switch (customFollowState) {
             case 'OFF':
-                startTracking()
+                setCustomFollowOn();
+                customFollowState = 'ACTIVE';
+                setTrackingText("Stop Following");
                 break;
             case 'BACKGROUND':
-                recenterTracking();
+                customFollowState = 'ACTIVE';
+                moveOnPositionUpdate(lastFoundPosition[0],lastFoundPosition[1]);
+                setTrackingText("Stop Following")
                 break;
-            case 'ON':
-                finishTracking();
+            case 'ACTIVE':
+                setCustomFollowOff();
+                setTrackingText("Follow Location");
+                customFollowState = 'OFF';
                 break;
             default:
-                console.error('Unexpected tracking state: ' + getTrackingState());
+                console.error('Unexpected custom follow location state: ' + customFollowState);
+
         }
     }
 
-    async function startTracking() {
+    function setCustomFollowOn() {
+        watchID = navigator.geolocation.watchPosition((position) => {
+            lastFoundPosition = [position.coords.longitude, position.coords.latitude];
+            moveOnPositionUpdate(position.coords.longitude, position.coords.latitude);
+        });
+        addDeviceOrientationListener();
         toggleWakeLock(true);
-        setTrackingText("Stop Following");
-        switch (getTrackingState()) {
-            case 'OFF':
-                geolocateControl.trigger();
-                break;
-            case 'BACKGROUND':
-                geolocateControl.trigger();
-                break;
-            case 'ON':
-                break;
-            default:
-                console.error('Unexpected tracking state: ' + getTrackingState());
+    }
+
+    function addDeviceOrientationListener() {
+        const addListener = () => {
+            if ('ondeviceorientationabsolute' in window) {
+                window.addEventListener('deviceorientationabsolute', onDeviceOrientation);
+            } else {
+                // safari is special
+                window.addEventListener('deviceorientation', onDeviceOrientation);
+            }
+        };
+
+        // safari needs permission in some cases
+        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        addListener();
+                    }
+                })
+                .catch(console.error);
+        } else {
+            addListener();
         }
     }
 
-    async function recenterTracking() {
-        setTrackingText("Stop Following");
-        switch (getTrackingState()) {
-            case 'OFF':
-                geolocateControl.trigger();
-                break;
-            case 'BACKGROUND':
-                geolocateControl.trigger();
-                break;
-            case 'ON':
-                break;
-            default:
-                console.error('Unexpected tracking state: ' + getTrackingState());
+    function onDeviceOrientation(deviceOrientationEvent) {
+        let heading;
+        if (deviceOrientationEvent.webkitCompassHeading) {
+            // Safari
+            heading = deviceOrientationEvent.webkitCompassHeading;
+        } else if (deviceOrientationEvent.absolute === true) {
+            // non-Safari alpha increases counter clockwise around the z axis
+            heading = deviceOrientationEvent.alpha * -1;
+        }
+        updateMapOrientation(heading);
+    }
+
+    function updateMapOrientation(heading) {
+        if (heading && customFollowState === 'ACTIVE') {
+            userRotationHeading = heading;
+            map.jumpTo({bearing: heading}, {trackingMove: true});
+            userLocationMarker.setRotation(userRotationHeading);
         }
     }
 
-    async function finishTracking(params) {
+    function moveOnPositionUpdate(lng, lat) {
+        if (lng && lat) {
+            if (customFollowState === 'ACTIVE') {
+                map.jumpTo({center: [lng, lat]}, {trackingMove: true});
+            }
+            if (!userLocationMarker) {
+                const el = document.createElement('div');
+                el.className = 'custom-follow-icon';
+
+                userLocationMarker = new mapboxgl.Marker({
+                    element: el,
+                    // color: 'purple',
+                    rotationAlignment: 'map',
+                    pitchAlignment: 'map'
+                });
+            }
+            userLocationMarker.setLngLat([lng, lat]).addTo(map);
+            userLocationMarker.setRotation(userRotationHeading);
+        } else {
+            userLocationMarker.remove();
+        }
+        
+    }
+
+    function setCustomFollowOff() {
+        navigator.geolocation.clearWatch(watchID);
+        window.removeEventListener('deviceorientation', this._onDeviceOrientation);
+        window.removeEventListener('deviceorientationabsolute', this._onDeviceOrientation);
         toggleWakeLock(false);
-        setTrackingText("Follow Location");
-        switch (getTrackingState()) {
-            case 'OFF':
-                break;
-            case 'BACKGROUND':
-                geolocateControl.trigger();
-                geolocateControl.trigger();
-                break;
-            case 'ON':
-                geolocateControl.trigger();
-                break;
-            default:
-                console.error('Unexpected tracking state: ' + getTrackingState());
-        }
+        userLocationMarker.remove();
     }
 
     async function toggleWakeLock(shouldFollow) {
@@ -1725,29 +1776,8 @@
         }
     }
 
-    // Based on the internals of the geolocate controls
-    // https://github.com/mapbox/mapbox-gl-js/blob/4b358c3c66cad4f08ac137b6804393c29061ed8f/src/ui/control/geolocate_control.ts#L488
-    function getTrackingState() {
-        if (!geolocateControl || geolocateControl._watchState == 'OFF') {
-            return 'OFF';
-        } else if (geolocateControl._watchState == 'BACKGROUND') {
-            return 'BACKGROUND';
-        } else {
-            return 'ON';
-        }
-    }
-
     function setTrackingText(text) {
         document.getElementById('follow-location-text').textContent = text;
-    }
-
-    function handleUserLocationEnd() {
-        if (getTrackingState() == 'BACKGROUND') {
-            // This is the user moving the map which retains the dot but stops the map tracking
-            setTrackingText("Recenter")
-        } else {
-            // Do Nothing;
-        }
     }
 
     // If the wakelock is asked for, the user goes to another tab, then comes back, this will keep it active
