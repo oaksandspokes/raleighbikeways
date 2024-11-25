@@ -1915,6 +1915,7 @@
     function sendLog(data) {
         try {
             data.userToken = getUserToken();
+            data.currentUrl = window.location.href;
 
             const logUrl = `http://174.109.79.57:5080/api/trianglebikeways/map/_json`
             fetch(logUrl, {
