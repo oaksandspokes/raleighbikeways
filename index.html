@@ -549,8 +549,8 @@
         const longTouchTimeMS = 500;
         const touchTime = new Date().getTime() - touchStartTime;
 
-        const acceptableMoveDistance = 20;
-        const didNotMoveMap = Math.abs(event.point.x - touchLocation.x) < acceptableMoveDistance && Math.abs(event.point.y - touchLocation.y) < acceptableMoveDistance
+        const acceptableMoveDistance = 10;
+        const didNotMoveMap = touchLocation && Math.abs(event.point.x - touchLocation.x) < acceptableMoveDistance && Math.abs(event.point.y - touchLocation.y) < acceptableMoveDistance
         if (touchStartTime && ( touchTime > longTouchTimeMS) && didNotMoveMap) {
             console.log("did not move map");
             showContextMenuPopupOnPoint(event.lngLat);
@@ -1769,7 +1769,7 @@
 
     function updateMapOrientation() {
         const heading = userRotationHeading;
-        if (heading) {
+        if (heading && userLocationMarker) {
             userLocationMarker.setRotation(heading);
 
             if (customFollowState === 'ACTIVE') {
