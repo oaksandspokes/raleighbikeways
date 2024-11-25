@@ -688,64 +688,72 @@
 
 
     map.on('style.load', () => {
-
-        addMapSources();
-
-        addMapLayers();
-
-        // After the map has started loading and all the layers have been added
-        // we want to disable any layers the user previously removed
-        if (getCookie("hasOpened")) {
-            if (getCookie("hideGreenway") === "true") {
-                legendToggleGreenwayLayer(false);
-                document.getElementById('greenway-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDashed") === "true") {
-                legendToggleGreenwayDashedLayer(false);
-                document.getElementById('greenway-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDetour") === "true") {
-                legendToggleGreenwayDetourLayer(false);
-                document.getElementById('greenway-detour-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilities") === "true") {
-                legendToggleFacilitiesLayer(false);
-                document.getElementById('facilities-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilitiesDashed") === "true") {
-                legendToggleDashedFacilitiesLayer(false);
-                document.getElementById('facilities-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideCitrix") === "true") {
-                legendToggleCitrixLayer(false);
-                document.getElementById('citrix-checkbox').checked = false;
-            }
-            if (getCookie("hideProgrammed") === "true") {
-                legendToggleProgrammedLayer(false);
-                document.getElementById('programmed-checkbox').checked = false;
-            }
-            if (getCookie("hideBikeParking") === "true") {
-                legendToggleBikeParking(false);
-                document.getElementById('bike-parking-checkbox').checked = false;
-            }
-            if (getCookie("showAllWaterGauges") === "true") {
-                showAllWaterGauges = true;
-                document.getElementById('water-gauge-checkbox').checked = true;
-            }
-            // after reading cookie so we know whether to add the non-flood state water gauges
-            handleWaterGauges();
-
-        } else {
-            setCookie("hasOpened", "true", 1000);
-            // We default the programmed bike infra to not show
-            legendToggleProgrammedLayer(false);
-            document.getElementById('programmed-checkbox').checked = false;
-        }
-
-        setBrouterRoute(true);
+        onStyleLoad();
 
         map.resize();
     });
+
+    function onStyleLoad() {
+        try {
+            addMapSources();
+
+            addMapLayers();
+
+            // After the map has started loading and all the layers have been added
+            // we want to disable any layers the user previously removed
+            if (getCookie("hasOpened")) {
+                if (getCookie("hideGreenway") === "true") {
+                    legendToggleGreenwayLayer(false);
+                    document.getElementById('greenway-checkbox').checked = false;
+                }
+                if (getCookie("hideGreenwayDashed") === "true") {
+                    legendToggleGreenwayDashedLayer(false);
+                    document.getElementById('greenway-dashed-checkbox').checked = false;
+                }
+                if (getCookie("hideGreenwayDetour") === "true") {
+                    legendToggleGreenwayDetourLayer(false);
+                    document.getElementById('greenway-detour-checkbox').checked = false;
+                }
+                if (getCookie("hideFacilities") === "true") {
+                    legendToggleFacilitiesLayer(false);
+                    document.getElementById('facilities-checkbox').checked = false;
+                }
+                if (getCookie("hideFacilitiesDashed") === "true") {
+                    legendToggleDashedFacilitiesLayer(false);
+                    document.getElementById('facilities-dashed-checkbox').checked = false;
+                }
+                if (getCookie("hideCitrix") === "true") {
+                    legendToggleCitrixLayer(false);
+                    document.getElementById('citrix-checkbox').checked = false;
+                }
+                if (getCookie("hideProgrammed") === "true") {
+                    legendToggleProgrammedLayer(false);
+                    document.getElementById('programmed-checkbox').checked = false;
+                }
+                if (getCookie("hideBikeParking") === "true") {
+                    legendToggleBikeParking(false);
+                    document.getElementById('bike-parking-checkbox').checked = false;
+                }
+                if (getCookie("showAllWaterGauges") === "true") {
+                    showAllWaterGauges = true;
+                    document.getElementById('water-gauge-checkbox').checked = true;
+                }
+                // after reading cookie so we know whether to add the non-flood state water gauges
+                handleWaterGauges();
+
+            } else {
+                setCookie("hasOpened", "true", 1000);
+                // We default the programmed bike infra to not show
+                legendToggleProgrammedLayer(false);
+                document.getElementById('programmed-checkbox').checked = false;
+            }
+
+            setBrouterRoute(true);
+        } catch (e) {
+            console.error(`Error on style load: ${e.message}`);
+            alert(`Unknown Error; Please Refresh the Page`);
+        }
+    }
 
     function addMapSources() {
 
