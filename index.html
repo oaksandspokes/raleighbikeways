@@ -1730,6 +1730,8 @@
         }
     }
 
+    const updateMapOrientationThrottled = throttle(updateMapOrientation,20);
+
     function onDeviceOrientation(deviceOrientationEvent) {
         let heading;
         if (deviceOrientationEvent.webkitCompassHeading) {
@@ -1740,7 +1742,7 @@
             heading = deviceOrientationEvent.alpha * -1;
         }
         userRotationHeading = heading;
-        throttle(updateMapOrientation,20);
+        updateMapOrientationThrottled(updateMapOrientation,20);
     }
 
     function throttle(fn, time) {
@@ -1793,7 +1795,7 @@
                 });
             }
             userLocationMarker.setLngLat([lng, lat]).addTo(map);
-            userLocationMarker.setRotation(userRotationHeading);
+            // userLocationMarker.setRotation(userRotationHeading);
         } else {
             userLocationMarker.remove();
         }
