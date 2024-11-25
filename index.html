@@ -180,7 +180,8 @@
                         </svg>
                     </td>
                 </tr>
-                <tr>
+                <!-- TODO: All Programmed sources were throwing an error -->
+                <!-- <tr>
                     <td>
                         <input id="programmed-checkbox" type="checkbox" class="legend-checkbox"
                             onchange="legendToggleProgrammedLayer(this.checked)" checked>Planned Bikeways<br>
@@ -190,7 +191,7 @@
                             <line x1="0" y1="5" x2="100" y2="5" />
                         </svg>
                     </td>
-                </tr>
+                </tr> -->
                 <tr>
                     <td>
                         <input id="citrix-checkbox" type="checkbox" class="legend-checkbox"
@@ -379,6 +380,8 @@
         });
     }
 
+    sendInitializationLog();
+
     mapboxgl.accessToken = 'pk.eyJ1Ijoib2Frc2FuZHNwb2tlcyIsImEiOiJjazR1M2Ztc3cwZXl2M21ub3p6eXF3b2txIn0.BNI4-QbP-094byFujTJAuQ'
 
     const boundingBox = {
@@ -536,6 +539,10 @@
         setCookie("lastCameraLng", mapCenter.lng, 1000);
         setCookie("lastCameraLat", mapCenter.lat, 1000);
         setCookie("lastZoom", map.getZoom(), 1000);
+    });
+
+    map.on('error', (message) => {
+        onError(`A Mapbox Error has occurred: ${message}`);
     });
 
     let touchStartTime = null;
@@ -750,7 +757,7 @@
 
             setBrouterRoute(true);
         } catch (e) {
-            console.error(`Error on style load: ${e.message}`);
+            onException(`Error on map style load`, e);
             alert(`Unknown Error; Please Refresh the Page`);
         }
     }
@@ -767,10 +774,10 @@
             'data': caryBikeQuery,
         });
 
-        map.addSource(sources.PROGRAMMED_FACILITIES, {
-            'type': 'geojson',
-            'data': programmedBikeFacilitiesQuery
-        });
+        // map.addSource(sources.PROGRAMMED_FACILITIES, {
+        //     'type': 'geojson',
+        //     'data': programmedBikeFacilitiesQuery
+        // });
 
         map.addSource(sources.RALEIGH_GREENWAY, {
             'type': 'geojson',
@@ -792,10 +799,11 @@
             'data': caryGreenwaysQuery
         });
 
-        map.addSource(sources.EXISTING_FACILITIES, {
-            'type': 'geojson',
-            'data': existingBikeFacilitiesQuery
-        });
+        // TODO: This was throwing an error
+        // map.addSource(sources.EXISTING_FACILITIES, {
+        //     'type': 'geojson',
+        //     'data': existingBikeFacilitiesQuery
+        // });
 
         map.addSource(sources.CITRIX, {
             'type': 'geojson',
@@ -810,17 +818,18 @@
 
     function addMapLayers() {
 
-        map.addLayer({
-            'id': layers.RALEIGH_EXISTING_DASHED,
-            'type': 'line',
-            'source': sources.EXISTING_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.EXISTING,
-                'line-width': 2,
-                'line-dasharray': [1, 2]
-            }
-        });
+        // TODO: this was throwing an error
+        // map.addLayer({
+        //     'id': layers.RALEIGH_EXISTING_DASHED,
+        //     'type': 'line',
+        //     'source': sources.EXISTING_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.EXISTING,
+        //         'line-width': 2,
+        //         'line-dasharray': [1, 2]
+        //     }
+        // });
 
         map.addLayer({
             'id': layers.CARY_BIKES_DASHED,
@@ -845,33 +854,34 @@
             }
         });
 
-        map.addLayer({
-            'id': layers.PROGRAMMED,
-            'type': 'line',
-            'source': sources.PROGRAMMED_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.PROGRAMMED,
-                'line-width': [
-                    'match',
-                    ['get', 'Type'],
-                    ['Bike Lane', 'Separated Bike Lane', 'Buffered Bike Lane', 'Buffered Bike Lane/Bike Lane', 'Multi-Use Path'], 2,
-                    0
-                ]
-            }
-        });
+        // TODO: this was throwing an error
+        // map.addLayer({
+        //     'id': layers.PROGRAMMED,
+        //     'type': 'line',
+        //     'source': sources.PROGRAMMED_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.PROGRAMMED,
+        //         'line-width': [
+        //             'match',
+        //             ['get', 'Type'],
+        //             ['Bike Lane', 'Separated Bike Lane', 'Buffered Bike Lane', 'Buffered Bike Lane/Bike Lane', 'Multi-Use Path'], 2,
+        //             0
+        //         ]
+        //     }
+        // });
 
-        map.addLayer({
-            'id': layers.PROGRAMMED_DASHED,
-            'type': 'line',
-            'source': sources.PROGRAMMED_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.PROGRAMMED,
-                'line-width': 2,
-                'line-dasharray': [1, 2]
-            }
-        });
+        // map.addLayer({
+        //     'id': layers.PROGRAMMED_DASHED,
+        //     'type': 'line',
+        //     'source': sources.PROGRAMMED_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.PROGRAMMED,
+        //         'line-width': 2,
+        //         'line-dasharray': [1, 2]
+        //     }
+        // });
 
         map.addLayer({
             'id': layers.GREENWAY_DETOUR,
@@ -1122,7 +1132,7 @@
 
     function addWaterGaugeData() {
         if (!waterGaugeMetadata) {
-            console.error("The Water Gauge Metadata was not populated");
+            onError("The Water Gauge Metadata was not populated");
             return;
         }
 
@@ -1142,12 +1152,12 @@
                     const gaugeGeoJSON = USGSToGeoJSON(gaugeTimeSeries);
                     addWaterGaugesToMap(gaugeGeoJSON);
                 } else {
-                    console.error("Gauge data was not part of the USGS data");
+                    onError("Gauge data was not part of the USGS data");
                 }
                 
             })
             .catch(e => {
-                console.error("error fetching water gauge data", e);
+                onError("error fetching water gauge data", e);
             })
     }
 
@@ -1220,7 +1230,7 @@
                     addWaterGaugeData();
                 })
                 .catch(error => {
-                    console.error("failed to fetch water gauge metadata", error);
+                    onException(`Failed to fetch water gauge metadata ${error.message}`, error);
                 });
         } else {
             addWaterGaugeData();
@@ -1299,11 +1309,13 @@
     }
 
     function legendToggleProgrammedLayer(isChecked) {
-        var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideProgrammed", (!isChecked).toString(), 1000);
+        // TODO: all programmed layers were throwing an error
 
-        setVisibilityProperty(layers.PROGRAMMED, visibilityState);
-        setVisibilityProperty(layers.PROGRAMMED_DASHED, visibilityState);
+        // var visibilityState = isChecked ? 'visible' : 'none';
+        // setCookie("hideProgrammed", (!isChecked).toString(), 1000);
+
+        // setVisibilityProperty(layers.PROGRAMMED, visibilityState);
+        // setVisibilityProperty(layers.PROGRAMMED_DASHED, visibilityState);
     }
 
     function legendToggleCitrixLayer(isChecked) {
@@ -1536,7 +1548,7 @@
         handleGeoJsonResponse(geojson);
       } catch (error) {
         brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
-        console.error('Error fetching route:', error);
+        onException('Error fetching route:', error);
         alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
       } finally {
         toggleLoader(false);
@@ -1568,7 +1580,7 @@
                 const profileResponseJson = await setProfileResponse.json();
                 brouterCustomProfile = profileResponseJson.profileid;
             } catch (error) {
-                console.error('Error uploading profile:', error);
+                onException('Error uploading profile:', error);
                 brouterCustomProfile = null;
             }
         }
@@ -1696,7 +1708,7 @@
                 customFollowState = 'OFF';
                 break;
             default:
-                console.error('Unexpected custom follow location state: ' + customFollowState);
+                onError('Unexpected custom follow location state: ' + customFollowState);
 
         }
     }
@@ -1732,7 +1744,7 @@
                         addListener();
                     }
                 })
-                .catch(console.error);
+                .catch(onError);
         } else {
             addListener();
         }
@@ -1827,7 +1839,7 @@
         }
 
         if (!wakeLockSupported) {
-            console.error("tried to get wakelock on unsupported device");
+            onError("tried to get wakelock on unsupported device");
             return;
         }
 
@@ -1839,8 +1851,8 @@
                 document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
                 console.log("got wake lock");
             } catch (err) {
-            // The Wake Lock request has failed - usually system related, such as battery.
-            console.error(`failed to get wake lock: ${err.name}, ${err.message}`);
+                // The Wake Lock request has failed - usually system related, such as battery.
+                onError(`failed to get wake lock: ${err.name}, ${err.message}`);
             }
         } else {
             wakeLock.release().then(() => {
@@ -1861,6 +1873,62 @@
             wakeLock = await navigator.wakeLock.request("screen");
         }
     });
+
+    function onException(message, exception) {
+        console.error(`[Triangle Bikeways] ${message}`, exception);
+        sendErrorLog(message, exception);
+    }
+
+    function onError(message) {
+        console.error(`[Triangle Bikeways] ${message}`);
+        sendErrorLog(message, "N/A");
+    }
+
+    function getUserToken() {
+        let userToken = getCookie("mapUserToken");
+        if(!userToken) {
+            userToken = Math.floor(Math.random() * 10000000);
+            setCookie("mapUserToken",userToken,1000);
+        }
+        return userToken;
+    }
+
+    function sendInitializationLog() {
+        const data = {
+            level: "INFO",
+            message: 'User initialized the map page'
+        }
+        sendLog(data);
+    }
+
+    function sendErrorLog(message, exception) {
+        const data = {
+            level: "SEVERE",
+            message,
+            exceptionMessage: JSON.stringify(exception && exception.message),
+            exceptionStack: JSON.stringify(exception && exception.stack),
+        }
+
+        sendLog(data);
+    }
+
+    function sendLog(data) {
+        try {
+            data.userToken = getUserToken();
+
+            const logUrl = `http://174.109.79.57/:5080/api/trianglebikeways/map/_json`
+            fetch(logUrl, {
+                    method: 'POST',
+                    body: JSON.stringify([data]),
+                    headers: { 'Content-Type': 'application/json',
+                    'accept': 'application/json',
+                    "Authorization": "Basic YWRtaW5AanB0ZXN0LmNvbTppeURRdHE0MlJMSExXNWxm"
+                    },
+                }).catch(console.error);
+        } catch(e) {
+            console.error('Error sending logs', e);
+        }
+    }
 
     // Load the autocomplete functionality once the script loads
     window.onload = initAutocomplete;
