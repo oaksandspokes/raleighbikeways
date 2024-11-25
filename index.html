@@ -542,7 +542,7 @@
     });
 
     map.on('error', (message) => {
-        onError(`A Mapbox Error has occurred: ${message}`);
+        onError(`A Mapbox Error has occurred: ${JSON.stringify(message)}`);
     });
 
     let touchStartTime = null;
@@ -1302,7 +1302,7 @@
         var visibilityState = isChecked ? 'visible' : 'none';
         setCookie("hideFacilitiesDashed", (!isChecked).toString(), 1000);
 
-        setVisibilityProperty(layers.RALEIGH_EXISTING_DASHED, visibilityState);
+        // setVisibilityProperty(layers.RALEIGH_EXISTING_DASHED, visibilityState);
         setVisibilityProperty(layers.CARY_BIKES_DASHED, visibilityState);
         setVisibilityProperty(layers.DURHAM_FACILITIES_DASHED, visibilityState);
         setVisibilityProperty(layers.CH_CARR_FACILITIES_DASHED, visibilityState);
@@ -1875,7 +1875,7 @@
     });
 
     function onException(message, exception) {
-        console.error(`[Triangle Bikeways] ${message}`, exception);
+        console.error(`[Triangle Bikeways] ${message} | ${exception && exception.message}`, exception);
         sendErrorLog(message, exception);
     }
 
@@ -1916,7 +1916,7 @@
         try {
             data.userToken = getUserToken();
 
-            const logUrl = `http://174.109.79.57/:5080/api/trianglebikeways/map/_json`
+            const logUrl = `http://174.109.79.57:5080/api/trianglebikeways/map/_json`
             fetch(logUrl, {
                     method: 'POST',
                     body: JSON.stringify([data]),
