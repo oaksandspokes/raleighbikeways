@@ -539,18 +539,25 @@
     });
 
     let touchStartTime = null;
+    let touchLocation = null;
     map.on('touchstart', (event) => {
         touchStartTime = new Date().getTime();
+        touchLocation = event.point;
     });
 
     map.on('touchend', (event) => {
         const longTouchTimeMS = 500;
         const touchTime = new Date().getTime() - touchStartTime;
-        if (touchStartTime && ( touchTime > longTouchTimeMS)) {
+
+        const acceptableMoveDistance = 20;
+        const didNotMoveMap = Math.abs(event.point.x - touchLocation.x) < acceptableMoveDistance && Math.abs(event.point.y - touchLocation.y) < acceptableMoveDistance
+        if (touchStartTime && ( touchTime > longTouchTimeMS) && didNotMoveMap) {
+            console.log("did not move map");
             showContextMenuPopupOnPoint(event.lngLat);
         }
 
         touchStartTime = null;
+        touchLocation = null;
     });
 
     map.on('contextmenu', event => {
