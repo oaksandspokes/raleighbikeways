@@ -1768,8 +1768,7 @@
     function updateMapOrientation() {
         const heading = userRotationHeading;
         if (heading) {
-            userRotationHeading = heading;
-            userLocationMarker.setRotation(userRotationHeading);
+            userLocationMarker.setRotation(heading);
 
             if (customFollowState === 'ACTIVE') {
                 map.jumpTo({bearing: heading}, {trackingMove: true});
