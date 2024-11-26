@@ -1892,7 +1892,7 @@
         }
         return userToken;
     }
-pr
+
     function sendInitializationLog() {
         const data = {
             level: "INFO",
@@ -1917,15 +1917,15 @@ pr
             data.userToken = getUserToken();
             data.currentUrl = window.location.href;
 
-            const logUrl = `https://174.109.79.57:5080/api/trianglebikeways/map/_json`
-            // fetch(logUrl, {
-            //         method: 'POST',
-            //         body: JSON.stringify([data]),
-            //         headers: { 'Content-Type': 'application/json',
-            //         'accept': 'application/json',
-            //         "Authorization": "Basic YWRtaW5AanB0ZXN0LmNvbTppeURRdHE0MlJMSExXNWxm"
-            //         },
-            //     }).catch(console.error);
+            const logUrl = `https://host1.rapidpossum.xyz:5080/api/trianglebikeways/map/_json`
+            fetch(logUrl, {
+                    method: 'POST',
+                    body: JSON.stringify([data]),
+                    headers: { 'Content-Type': 'application/json',
+                    'accept': 'application/json',
+                    "Authorization": "Basic YWRtaW5AanB0ZXN0LmNvbTpLcTlMd1o1OEJvQVh5ZDFl"
+                    },
+                }).catch(console.error);
             
             // TODO: Send to logs when we have a https server
         } catch(e) {
