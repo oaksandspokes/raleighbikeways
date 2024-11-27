@@ -609,7 +609,9 @@
                 map.addControl(geolocateControl, 'bottom-right');
             }
         } else {
-            geolocateControl.onRemove();
+            if (map.hasControl(geolocateControl)) {
+                map.removeControl(geolocateControl);
+            }
         }
     }
 
@@ -1693,21 +1695,24 @@
     }
 
     async function toggleFollowLocation() {
-        switch (customFollowState) {
-            case 'OFF':
-                setCustomFollowOn();
-                break;
-            case 'BACKGROUND':
-                customFollowState = 'ACTIVE';
-                moveOnPositionUpdate(lastFoundPosition[0],lastFoundPosition[1]);
-                setTrackingText("Stop Following")
-                break;
-            case 'ACTIVE':
-                setCustomFollowOff();
-                break;
-            default:
-                onError('Unexpected custom follow location state: ' + customFollowState);
-
+        try {
+            switch (customFollowState) {
+                case 'OFF':
+                    setCustomFollowOn();
+                    break;
+                case 'BACKGROUND':
+                    customFollowState = 'ACTIVE';
+                    moveOnPositionUpdate(lastFoundPosition[0],lastFoundPosition[1]);
+                    setTrackingText("Stop Following")
+                    break;
+                case 'ACTIVE':
+                    setCustomFollowOff();
+                    break;
+                default:
+                    onError('Unexpected custom follow location state: ' + customFollowState);
+            }
+        } catch(e) {
+            onException("Error togging follow location", e);
         }
     }
 
