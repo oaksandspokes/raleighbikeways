@@ -1662,7 +1662,7 @@
         const useCustomTrackingStyle = brouterRoute ? true : false;
 
         if (!useCustomTrackingStyle) {
-            customFollowState = 'OFF';
+            setCustomFollowOff();
         }
 
         if (document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0]) {
@@ -1694,8 +1694,6 @@
         switch (customFollowState) {
             case 'OFF':
                 setCustomFollowOn();
-                customFollowState = 'ACTIVE';
-                setTrackingText("Stop Following");
                 break;
             case 'BACKGROUND':
                 customFollowState = 'ACTIVE';
@@ -1704,8 +1702,6 @@
                 break;
             case 'ACTIVE':
                 setCustomFollowOff();
-                setTrackingText("Follow Location");
-                customFollowState = 'OFF';
                 break;
             default:
                 onError('Unexpected custom follow location state: ' + customFollowState);
@@ -1724,6 +1720,8 @@
         });
         addDeviceOrientationListener();
         toggleWakeLock(true);
+        customFollowState = 'ACTIVE';
+        setTrackingText("Stop Following");
     }
 
     function addDeviceOrientationListener() {
@@ -1750,7 +1748,8 @@
         }
     }
 
-    const updateMapOrientationThrottled = throttle(updateMapOrientation,20);
+     // If time between updates is too short, it will lock the screen from inputs
+    const updateMapOrientationThrottled = throttle(updateMapOrientation,500);
 
     function onDeviceOrientation(deviceOrientationEvent) {
         let heading;
@@ -1762,7 +1761,6 @@
             heading = deviceOrientationEvent.alpha * -1;
         }
         userRotationHeading = heading;
-        updateMapOrientationThrottled(updateMapOrientation,20);
     }
 
     function throttle(fn, time) {
@@ -1787,20 +1785,26 @@
         };
     }
 
+    let lastMapOrientation = 0;
     function updateMapOrientation() {
         const heading = userRotationHeading;
         if (heading && userLocationMarker) {
             userLocationMarker.setRotation(heading);
 
             if (customFollowState === 'ACTIVE') {
+                console.log("Time since last orientation:" + new Date().getTime() - lastMapOrientation);
+                lastMapOrientation = new Date().getTime();
                 map.jumpTo({bearing: heading}, {trackingMove: true});
             }
         }
     }
 
+    let lastMapPosition = 0;
     function moveOnPositionUpdate(lng, lat) {
         if (lng && lat) {
             if (customFollowState === 'ACTIVE') {
+                console.log("Time since last move:" + new Date().getTime() - lastMapPosition);
+                lastMapPosition = new Date().getTime();
                 map.jumpTo({center: [lng, lat]}, {trackingMove: true});
             }
             if (!userLocationMarker) {
@@ -1829,6 +1833,8 @@
         toggleWakeLock(false);
         userLocationMarker.remove();
         setGeolocateControl(true);
+        customFollowState = 'OFF';
+        setTrackingText("Follow Location");
     }
 
     async function toggleWakeLock(shouldFollow) {
