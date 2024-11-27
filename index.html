@@ -605,7 +605,9 @@
 
     function setGeolocateControl(show) {
         if (show) {
-            map.addControl(geolocateControl, 'bottom-right');
+            if (!map.hasControl(geolocateControl)) {
+                map.addControl(geolocateControl, 'bottom-right');
+            }
         } else {
             geolocateControl.onRemove();
         }
@@ -1831,7 +1833,7 @@
         window.removeEventListener('deviceorientation', this._onDeviceOrientation);
         window.removeEventListener('deviceorientationabsolute', this._onDeviceOrientation);
         toggleWakeLock(false);
-        userLocationMarker.remove();
+        userLocationMarker && userLocationMarker.remove();
         setGeolocateControl(true);
         customFollowState = 'OFF';
         setTrackingText("Follow Location");
