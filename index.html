@@ -1763,6 +1763,7 @@
             heading = deviceOrientationEvent.alpha * -1;
         }
         userRotationHeading = heading;
+        updateMapOrientationThrottled();
     }
 
     function throttle(fn, time) {
@@ -1787,26 +1788,20 @@
         };
     }
 
-    let lastMapOrientation = 0;
     function updateMapOrientation() {
         const heading = userRotationHeading;
         if (heading && userLocationMarker) {
             userLocationMarker.setRotation(heading);
 
             if (customFollowState === 'ACTIVE') {
-                console.log("Time since last orientation:" + new Date().getTime() - lastMapOrientation);
-                lastMapOrientation = new Date().getTime();
                 map.jumpTo({bearing: heading}, {trackingMove: true});
             }
         }
     }
 
-    let lastMapPosition = 0;
     function moveOnPositionUpdate(lng, lat) {
         if (lng && lat) {
             if (customFollowState === 'ACTIVE') {
-                console.log("Time since last move:" + new Date().getTime() - lastMapPosition);
-                lastMapPosition = new Date().getTime();
                 map.jumpTo({center: [lng, lat]}, {trackingMove: true});
             }
             if (!userLocationMarker) {
