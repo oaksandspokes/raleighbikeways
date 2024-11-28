@@ -1661,8 +1661,18 @@
         }
     }
 
+    function allowCustomFollow() {
+        return new URLSearchParams(window.location.search).has('customTracking');
+    }
+
     // Use the custom location button if we have a route, otherwise use the default button
     function setLocationTrackingStyle() {
+        // We are gating the custom follow stuff behind a URL param as it needs more tuning
+        if (!allowCustomFollow()) {
+            document.getElementById('follow-location').style.display = 'none'; 
+            return;
+        }
+
         const useCustomTrackingStyle = brouterRoute ? true : false;
 
         if (!useCustomTrackingStyle) {
@@ -1717,6 +1727,10 @@
     }
 
     function setCustomFollowOn() {
+        if (!allowCustomFollow()) {
+            return;
+        }
+
         setGeolocateControl(false);
         watchID = navigator.geolocation.watchPosition((position) => {
             lastFoundPosition = [position.coords.longitude, position.coords.latitude];
