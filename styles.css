@@ -38,6 +38,11 @@ body {
     padding: 0;
 }
 
+#routeDetails span {
+    color: white;
+    padding-left: 10px;
+}
+
 .search-box {
     width: 100%;
     margin-bottom: 10px;
