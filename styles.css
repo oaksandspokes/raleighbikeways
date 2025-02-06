@@ -38,6 +38,10 @@ body {
     padding: 0;
 }
 
+#routeDetails {
+    padding-top: 3px;
+}
+
 #routeDetails span {
     color: white;
     padding-left: 10px;
