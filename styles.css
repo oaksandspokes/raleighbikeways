@@ -36,6 +36,10 @@ body {
     width: 36px;
     height: 100%;
     padding: 0;
+    -webkit-appearance: none;
+    border-radius: 2px;
+    border-width: 0px;
+    border-color: #0eff06;
 }
 
 .search-box {
