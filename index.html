@@ -76,7 +76,11 @@
                 <i class="material-icons md-18 md-dark noselect">my_location</i>
             </button>
           </span>
-        </div>   
+        </div>
+        <span id="routeDetails" style="display: none;">
+            <span id="routeLength"></span>
+            <span id="routeTime"></span>
+        </span>
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
         </button>
@@ -1616,6 +1620,22 @@
         }
     }
 
+    function setRouteDetails() {
+        var routeDetails = document.getElementById('routeDetails');
+        var routeLength = document.getElementById('routeLength');
+        var routeTime = document.getElementById('routeTime');
+
+        if(brouterRoute) {
+            routeDetails.style.display = 'block';
+            var routeProperties = brouterRoute.features[0].properties;
+
+            routeTime.textContent = round(routeProperties["total-time"] / 60, 0) + " Minutes";
+            routeLength.textContent = round((routeProperties["track-length"] * 0.000621371192), 1) + " Miles";
+        } else {
+            routeDetails.style.display = 'none';
+        }
+    }
+
     function handleGeoJsonResponse(geojson) {
         brouterRoute = geojson;
         setBrouterRoute();
@@ -1625,6 +1645,7 @@
         removeLayer(layers.BROUTER_ROUTE);
         removeSource(sources.BROUTER_ROUTER);
         setLocationTrackingStyle();
+        setRouteDetails()
 
         if (brouterRoute) {
             if (!skipMapMove) {
@@ -1953,6 +1974,11 @@
         } catch(e) {
             console.error('Error sending logs', e);
         }
+    }
+
+    function round(value, precision) {
+        var multiplier = Math.pow(10, precision || 0);
+        return Math.round(value * multiplier) / multiplier;
     }
 
     // Load the autocomplete functionality once the script loads
