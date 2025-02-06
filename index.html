@@ -5,8 +5,9 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.css' rel='stylesheet' />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@40,400,0,0&icon_names=bedtime_off" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <script src="mapbox-gl-directions.js">
     </script>
@@ -46,7 +47,11 @@
     <div id="loader-container">
         <div class="loader"></div>
         <div class="loader-background"></div>
-    </div>      
+    </div>
+    <div id="follow-location" onclick="toggleFollowLocation()">
+        <span id="no-lock-icon" class="material-icons md-36 md-light noselect">my_location</span>
+        <span id="follow-location-text">Follow Location</span>
+    </div>
     <div id="info-icon-container" onclick="document.getElementById('info-box-container').style.display='block'">
         <i class="material-icons md-36 md-light black-border noselect">info</i>
     </div>
@@ -71,7 +76,11 @@
                 <i class="material-icons md-18 md-dark noselect">my_location</i>
             </button>
           </span>
-        </div>   
+        </div>
+        <span id="routeDetails" style="display: none;">
+            <span id="routeLength"></span>
+            <span id="routeTime"></span>
+        </span>
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
         </button>
@@ -175,7 +184,8 @@
                         </svg>
                     </td>
                 </tr>
-                <tr>
+                <!-- TODO: All Programmed sources were throwing an error -->
+                <!-- <tr>
                     <td>
                         <input id="programmed-checkbox" type="checkbox" class="legend-checkbox"
                             onchange="legendToggleProgrammedLayer(this.checked)" checked>Planned Bikeways<br>
@@ -185,7 +195,7 @@
                             <line x1="0" y1="5" x2="100" y2="5" />
                         </svg>
                     </td>
-                </tr>
+                </tr> -->
                 <tr>
                     <td>
                         <input id="citrix-checkbox" type="checkbox" class="legend-checkbox"
@@ -374,6 +384,8 @@
         });
     }
 
+    sendInitializationLog();
+
     mapboxgl.accessToken = 'pk.eyJ1Ijoib2Frc2FuZHNwb2tlcyIsImEiOiJjazR1M2Ztc3cwZXl2M21ub3p6eXF3b2txIn0.BNI4-QbP-094byFujTJAuQ'
 
     const boundingBox = {
@@ -533,6 +545,32 @@
         setCookie("lastZoom", map.getZoom(), 1000);
     });
 
+    map.on('error', (message) => {
+        onError(`A Mapbox Error has occurred: ${JSON.stringify(message)}`);
+    });
+
+    let touchStartTime = null;
+    let touchLocation = null;
+    map.on('touchstart', (event) => {
+        touchStartTime = new Date().getTime();
+        touchLocation = event.point;
+    });
+
+    map.on('touchend', (event) => {
+        const longTouchTimeMS = 500;
+        const touchTime = new Date().getTime() - touchStartTime;
+
+        const acceptableMoveDistance = 10;
+        const didNotMoveMap = touchLocation && Math.abs(event.point.x - touchLocation.x) < acceptableMoveDistance && Math.abs(event.point.y - touchLocation.y) < acceptableMoveDistance
+        if (touchStartTime && ( touchTime > longTouchTimeMS) && didNotMoveMap) {
+            console.log("did not move map");
+            showContextMenuPopupOnPoint(event.lngLat);
+        }
+
+        touchStartTime = null;
+        touchLocation = null;
+    });
+
     map.on('contextmenu', event => {
         showContextMenuPopupOnPoint(event.lngLat);
     });
@@ -542,7 +580,7 @@
     const geolocateControl = new mapboxgl.GeolocateControl({
         positionOptions: {
             enableHighAccuracy: true,
-            maximumAge: 1000,
+            maximumAge: 5000,
         },
         trackUserLocation: true
     })
@@ -551,16 +589,37 @@
 
     geolocateControl.on('geolocate', (geoPos) => {
         lastFoundPosition = [geoPos.coords.longitude, geoPos.coords.latitude];
-    })
+    });
 
     geolocateControl.on('error', (err) => {
         console.warn(err.message);
         if (err.code == 1) {
             window.alert("Geolocation permission was denied, please enable to use")
         }
-    })
+    });
 
-    map.addControl(geolocateControl, 'bottom-right');
+    map.on('movestart', (event) => {
+        // If it was a zoom from a mapbox button, let's keep the following state active
+        const fromResize = event.originalEvent && event.originalEvent.currentTarget && event.originalEvent.currentTarget.className && event.originalEvent.currentTarget.className.includes('mapboxgl-ctrl-zoom');
+        if (customFollowState === 'ACTIVE' && !fromResize && !event.trackingMove) {
+            setTrackingText("Recenter");
+            customFollowState = 'BACKGROUND';
+        }
+    });
+
+    function setGeolocateControl(show) {
+        if (show) {
+            if (!map.hasControl(geolocateControl)) {
+                map.addControl(geolocateControl, 'bottom-right');
+            }
+        } else {
+            if (map.hasControl(geolocateControl)) {
+                map.removeControl(geolocateControl);
+            }
+        }
+    }
+
+    setGeolocateControl(true);
 
     let showingDirections = false;
     let showingDirectionsSection = true;
@@ -573,6 +632,17 @@
     let endLocation = null;
     let brouterRoute = null;
     let brouterCustomProfile = null;
+    let wakeLock = null;
+    let wakeLockSupported = false;
+
+    let customFollowState = 'OFF'; // Can be OFF, ACTIVE, BACKGROUND
+    let watchID = null; // geolocation watch ID, needs to be cleared when we aren't using it
+    let userLocationMarker = null;
+    let userRotationHeading = 0;
+
+    if ("wakeLock" in navigator) {
+        wakeLockSupported = true;
+    }
 
     // Function to help build a query string for querying the ArcGIS REST service
     function queryString(queryProperties) {
@@ -633,66 +703,72 @@
 
 
     map.on('style.load', () => {
-
-        addMapSources();
-
-        addMapLayers();
-
-        // After the map has started loading and all the layers have been added
-        // we want to disable any layers the user previously removed
-        if (getCookie("hasOpened")) {
-            if (getCookie("hideGreenway") === "true") {
-                legendToggleGreenwayLayer(false);
-                document.getElementById('greenway-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDashed") === "true") {
-                legendToggleGreenwayDashedLayer(false);
-                document.getElementById('greenway-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideGreenwayDetour") === "true") {
-                legendToggleGreenwayDetourLayer(false);
-                document.getElementById('greenway-detour-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilities") === "true") {
-                legendToggleFacilitiesLayer(false);
-                document.getElementById('facilities-checkbox').checked = false;
-            }
-            if (getCookie("hideFacilitiesDashed") === "true") {
-                legendToggleDashedFacilitiesLayer(false);
-                document.getElementById('facilities-dashed-checkbox').checked = false;
-            }
-            if (getCookie("hideCitrix") === "true") {
-                legendToggleCitrixLayer(false);
-                document.getElementById('citrix-checkbox').checked = false;
-            }
-            if (getCookie("hideProgrammed") === "true") {
-                legendToggleProgrammedLayer(false);
-                document.getElementById('programmed-checkbox').checked = false;
-            }
-            if (getCookie("hideBikeParking") === "true") {
-                legendToggleBikeParking(false);
-                document.getElementById('bike-parking-checkbox').checked = false;
-            }
-            if (getCookie("showAllWaterGauges") === "true") {
-                showAllWaterGauges = true;
-                document.getElementById('water-gauge-checkbox').checked = true;
-            }
-            // after reading cookie so we know whether to add the non-flood state water gauges
-            handleWaterGauges();
-
-        } else {
-            setCookie("hasOpened", "true", 1000);
-            // We default the programmed bike infra to not show
-            legendToggleProgrammedLayer(false);
-            document.getElementById('programmed-checkbox').checked = false;
-        }
-
-        if (brouterRoute) {
-            setBrouterRoute(); // redisplay route if it exists
-        }
+        onStyleLoad();
 
         map.resize();
     });
+
+    function onStyleLoad() {
+        try {
+            addMapSources();
+
+            addMapLayers();
+
+            // After the map has started loading and all the layers have been added
+            // we want to disable any layers the user previously removed
+            if (getCookie("hasOpened")) {
+                if (getCookie("hideGreenway") === "true") {
+                    legendToggleGreenwayLayer(false);
+                    document.getElementById('greenway-checkbox').checked = false;
+                }
+                if (getCookie("hideGreenwayDashed") === "true") {
+                    legendToggleGreenwayDashedLayer(false);
+                    document.getElementById('greenway-dashed-checkbox').checked = false;
+                }
+                if (getCookie("hideGreenwayDetour") === "true") {
+                    legendToggleGreenwayDetourLayer(false);
+                    document.getElementById('greenway-detour-checkbox').checked = false;
+                }
+                if (getCookie("hideFacilities") === "true") {
+                    legendToggleFacilitiesLayer(false);
+                    document.getElementById('facilities-checkbox').checked = false;
+                }
+                if (getCookie("hideFacilitiesDashed") === "true") {
+                    legendToggleDashedFacilitiesLayer(false);
+                    document.getElementById('facilities-dashed-checkbox').checked = false;
+                }
+                if (getCookie("hideCitrix") === "true") {
+                    legendToggleCitrixLayer(false);
+                    document.getElementById('citrix-checkbox').checked = false;
+                }
+                // if (getCookie("hideProgrammed") === "true") {
+                //     legendToggleProgrammedLayer(false);
+                //     document.getElementById('programmed-checkbox').checked = false;
+                // }
+                if (getCookie("hideBikeParking") === "true") {
+                    legendToggleBikeParking(false);
+                    document.getElementById('bike-parking-checkbox').checked = false;
+                }
+                if (getCookie("showAllWaterGauges") === "true") {
+                    showAllWaterGauges = true;
+                    document.getElementById('water-gauge-checkbox').checked = true;
+                }
+                // after reading cookie so we know whether to add the non-flood state water gauges
+                handleWaterGauges();
+
+            } else {
+                setCookie("hasOpened", "true", 1000);
+                // We default the programmed bike infra to not show
+                legendToggleProgrammedLayer(false);
+                // document.getElementById('programmed-checkbox').checked = false;
+            }
+
+            setBrouterRoute(true);
+        } catch (e) {
+            onException(`Error on map style load`, e);
+            alert(`Unknown Error; Please Refresh the Page`);
+        }
+    }
 
     function addMapSources() {
 
@@ -706,10 +782,10 @@
             'data': caryBikeQuery,
         });
 
-        map.addSource(sources.PROGRAMMED_FACILITIES, {
-            'type': 'geojson',
-            'data': programmedBikeFacilitiesQuery
-        });
+        // map.addSource(sources.PROGRAMMED_FACILITIES, {
+        //     'type': 'geojson',
+        //     'data': programmedBikeFacilitiesQuery
+        // });
 
         map.addSource(sources.RALEIGH_GREENWAY, {
             'type': 'geojson',
@@ -731,10 +807,11 @@
             'data': caryGreenwaysQuery
         });
 
-        map.addSource(sources.EXISTING_FACILITIES, {
-            'type': 'geojson',
-            'data': existingBikeFacilitiesQuery
-        });
+        // TODO: This was throwing an error
+        // map.addSource(sources.EXISTING_FACILITIES, {
+        //     'type': 'geojson',
+        //     'data': existingBikeFacilitiesQuery
+        // });
 
         map.addSource(sources.CITRIX, {
             'type': 'geojson',
@@ -749,17 +826,18 @@
 
     function addMapLayers() {
 
-        map.addLayer({
-            'id': layers.RALEIGH_EXISTING_DASHED,
-            'type': 'line',
-            'source': sources.EXISTING_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.EXISTING,
-                'line-width': 2,
-                'line-dasharray': [1, 2]
-            }
-        });
+        // TODO: this was throwing an error
+        // map.addLayer({
+        //     'id': layers.RALEIGH_EXISTING_DASHED,
+        //     'type': 'line',
+        //     'source': sources.EXISTING_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.EXISTING,
+        //         'line-width': 2,
+        //         'line-dasharray': [1, 2]
+        //     }
+        // });
 
         map.addLayer({
             'id': layers.CARY_BIKES_DASHED,
@@ -784,33 +862,34 @@
             }
         });
 
-        map.addLayer({
-            'id': layers.PROGRAMMED,
-            'type': 'line',
-            'source': sources.PROGRAMMED_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.PROGRAMMED,
-                'line-width': [
-                    'match',
-                    ['get', 'Type'],
-                    ['Bike Lane', 'Separated Bike Lane', 'Buffered Bike Lane', 'Buffered Bike Lane/Bike Lane', 'Multi-Use Path'], 2,
-                    0
-                ]
-            }
-        });
+        // TODO: this was throwing an error
+        // map.addLayer({
+        //     'id': layers.PROGRAMMED,
+        //     'type': 'line',
+        //     'source': sources.PROGRAMMED_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.PROGRAMMED,
+        //         'line-width': [
+        //             'match',
+        //             ['get', 'Type'],
+        //             ['Bike Lane', 'Separated Bike Lane', 'Buffered Bike Lane', 'Buffered Bike Lane/Bike Lane', 'Multi-Use Path'], 2,
+        //             0
+        //         ]
+        //     }
+        // });
 
-        map.addLayer({
-            'id': layers.PROGRAMMED_DASHED,
-            'type': 'line',
-            'source': sources.PROGRAMMED_FACILITIES,
-            'layout': {},
-            'paint': {
-                'line-color': colors.PROGRAMMED,
-                'line-width': 2,
-                'line-dasharray': [1, 2]
-            }
-        });
+        // map.addLayer({
+        //     'id': layers.PROGRAMMED_DASHED,
+        //     'type': 'line',
+        //     'source': sources.PROGRAMMED_FACILITIES,
+        //     'layout': {},
+        //     'paint': {
+        //         'line-color': colors.PROGRAMMED,
+        //         'line-width': 2,
+        //         'line-dasharray': [1, 2]
+        //     }
+        // });
 
         map.addLayer({
             'id': layers.GREENWAY_DETOUR,
@@ -1061,7 +1140,7 @@
 
     function addWaterGaugeData() {
         if (!waterGaugeMetadata) {
-            console.error("The Water Gauge Metadata was not populated");
+            onError("The Water Gauge Metadata was not populated");
             return;
         }
 
@@ -1081,12 +1160,12 @@
                     const gaugeGeoJSON = USGSToGeoJSON(gaugeTimeSeries);
                     addWaterGaugesToMap(gaugeGeoJSON);
                 } else {
-                    console.error("Gauge data was not part of the USGS data");
+                    onError("Gauge data was not part of the USGS data");
                 }
                 
             })
             .catch(e => {
-                console.error("error fetching water gauge data", e);
+                onError("error fetching water gauge data", e);
             })
     }
 
@@ -1159,7 +1238,7 @@
                     addWaterGaugeData();
                 })
                 .catch(error => {
-                    console.error("failed to fetch water gauge metadata", error);
+                    onException(`Failed to fetch water gauge metadata ${error.message}`, error);
                 });
         } else {
             addWaterGaugeData();
@@ -1231,18 +1310,20 @@
         var visibilityState = isChecked ? 'visible' : 'none';
         setCookie("hideFacilitiesDashed", (!isChecked).toString(), 1000);
 
-        setVisibilityProperty(layers.RALEIGH_EXISTING_DASHED, visibilityState);
+        // setVisibilityProperty(layers.RALEIGH_EXISTING_DASHED, visibilityState);
         setVisibilityProperty(layers.CARY_BIKES_DASHED, visibilityState);
         setVisibilityProperty(layers.DURHAM_FACILITIES_DASHED, visibilityState);
         setVisibilityProperty(layers.CH_CARR_FACILITIES_DASHED, visibilityState);
     }
 
     function legendToggleProgrammedLayer(isChecked) {
-        var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideProgrammed", (!isChecked).toString(), 1000);
+        // TODO: all programmed layers were throwing an error
 
-        setVisibilityProperty(layers.PROGRAMMED, visibilityState);
-        setVisibilityProperty(layers.PROGRAMMED_DASHED, visibilityState);
+        // var visibilityState = isChecked ? 'visible' : 'none';
+        // setCookie("hideProgrammed", (!isChecked).toString(), 1000);
+
+        // setVisibilityProperty(layers.PROGRAMMED, visibilityState);
+        // setVisibilityProperty(layers.PROGRAMMED_DASHED, visibilityState);
     }
 
     function legendToggleCitrixLayer(isChecked) {
@@ -1475,7 +1556,7 @@
         handleGeoJsonResponse(geojson);
       } catch (error) {
         brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
-        console.error('Error fetching route:', error);
+        onException('Error fetching route:', error);
         alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
       } finally {
         toggleLoader(false);
@@ -1507,7 +1588,7 @@
                 const profileResponseJson = await setProfileResponse.json();
                 brouterCustomProfile = profileResponseJson.profileid;
             } catch (error) {
-                console.error('Error uploading profile:', error);
+                onException('Error uploading profile:', error);
                 brouterCustomProfile = null;
             }
         }
@@ -1539,25 +1620,45 @@
         }
     }
 
-    function handleGeoJsonResponse(geojson) {
-        brouterRoute = geojson;
-        setBrouterRoute(geojson);
+    function setRouteDetails() {
+        var routeDetails = document.getElementById('routeDetails');
+        var routeLength = document.getElementById('routeLength');
+        var routeTime = document.getElementById('routeTime');
+
+        if(brouterRoute) {
+            routeDetails.style.display = 'block';
+            var routeProperties = brouterRoute.features[0].properties;
+
+            routeTime.textContent = round(routeProperties["total-time"] / 60, 0) + " Minutes";
+            routeLength.textContent = round((routeProperties["track-length"] * 0.000621371192), 1) + " Miles";
+        } else {
+            routeDetails.style.display = 'none';
+        }
     }
 
-    function setBrouterRoute() {
+    function handleGeoJsonResponse(geojson) {
+        brouterRoute = geojson;
+        setBrouterRoute();
+    }
+
+    function setBrouterRoute(skipMapMove) {
         removeLayer(layers.BROUTER_ROUTE);
         removeSource(sources.BROUTER_ROUTER);
+        setLocationTrackingStyle();
+        setRouteDetails()
 
         if (brouterRoute) {
-            var bounds = new mapboxgl.LngLatBounds();
+            if (!skipMapMove) {
+                var bounds = new mapboxgl.LngLatBounds();
 
-            brouterRoute.features.forEach(function(feature) {
-                feature.geometry.coordinates.forEach(function(coord) {
-                    bounds.extend(coord);
+                brouterRoute.features.forEach(function(feature) {
+                    feature.geometry.coordinates.forEach(function(coord) {
+                        bounds.extend(coord);
+                    });
                 });
-            });
 
-            map.fitBounds(bounds, { padding: {top: 120, bottom: 40, left: 40, right: 40} });
+                map.fitBounds(bounds, { padding: {top: 120, bottom: 40, left: 40, right: 40} });
+            }
 
             map.addSource(sources.BROUTER_ROUTER, {
             'type': 'geojson',
@@ -1581,6 +1682,30 @@
         }
     }
 
+    function allowCustomFollow() {
+        return new URLSearchParams(window.location.search).has('customTracking');
+    }
+
+    // Use the custom location button if we have a route, otherwise use the default button
+    function setLocationTrackingStyle() {
+        // We are gating the custom follow stuff behind a URL param as it needs more tuning
+        if (!allowCustomFollow()) {
+            document.getElementById('follow-location').style.display = 'none'; 
+            return;
+        }
+
+        const useCustomTrackingStyle = brouterRoute ? true : false;
+
+        if (!useCustomTrackingStyle) {
+            setCustomFollowOff();
+        }
+
+        if (document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0]) {
+            document.getElementsByClassName('mapboxgl-ctrl-geolocate')[0].style.display = useCustomTrackingStyle ? 'none' : 'block';
+        }
+        document.getElementById('follow-location').style.display = useCustomTrackingStyle ? 'block' : 'none'; 
+    }
+
     function removeLayer(id) {
         if (map.getLayer(id)) {
             map.removeLayer(id);
@@ -1598,6 +1723,262 @@
         const displayValue = showLoader ? 'block' : 'none';
 
         loaderContainer.style.display = displayValue;
+    }
+
+    async function toggleFollowLocation() {
+        try {
+            switch (customFollowState) {
+                case 'OFF':
+                    setCustomFollowOn();
+                    break;
+                case 'BACKGROUND':
+                    customFollowState = 'ACTIVE';
+                    moveOnPositionUpdate(lastFoundPosition[0],lastFoundPosition[1]);
+                    setTrackingText("Stop Following")
+                    break;
+                case 'ACTIVE':
+                    setCustomFollowOff();
+                    break;
+                default:
+                    onError('Unexpected custom follow location state: ' + customFollowState);
+            }
+        } catch(e) {
+            onException("Error togging follow location", e);
+        }
+    }
+
+    function setCustomFollowOn() {
+        if (!allowCustomFollow()) {
+            return;
+        }
+
+        setGeolocateControl(false);
+        watchID = navigator.geolocation.watchPosition((position) => {
+            lastFoundPosition = [position.coords.longitude, position.coords.latitude];
+            moveOnPositionUpdate(position.coords.longitude, position.coords.latitude);
+        }, () => {},{
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+        });
+        addDeviceOrientationListener();
+        toggleWakeLock(true);
+        customFollowState = 'ACTIVE';
+        setTrackingText("Stop Following");
+    }
+
+    function addDeviceOrientationListener() {
+        const addListener = () => {
+            if ('ondeviceorientationabsolute' in window) {
+                window.addEventListener('deviceorientationabsolute', onDeviceOrientation);
+            } else {
+                // safari is special
+                window.addEventListener('deviceorientation', onDeviceOrientation);
+            }
+        };
+
+        // safari needs permission in some cases
+        if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => {
+                    if (response === 'granted') {
+                        addListener();
+                    }
+                })
+                .catch(onError);
+        } else {
+            addListener();
+        }
+    }
+
+     // If time between updates is too short, it will lock the screen from inputs
+    const updateMapOrientationThrottled = throttle(updateMapOrientation,500);
+
+    function onDeviceOrientation(deviceOrientationEvent) {
+        let heading;
+        if (deviceOrientationEvent.webkitCompassHeading) {
+            // Safari
+            heading = deviceOrientationEvent.webkitCompassHeading;
+        } else if (deviceOrientationEvent.absolute === true) {
+            // non-Safari alpha increases counter clockwise around the z axis
+            heading = deviceOrientationEvent.alpha * -1;
+        }
+        userRotationHeading = heading;
+        updateMapOrientationThrottled();
+    }
+
+    function throttle(fn, time) {
+        let pending = false;
+        let timerId = null;
+
+        const later = () => {
+            timerId = null;
+            if (pending) {
+                fn();
+                timerId = setTimeout(later, time);
+                pending = false;
+            }
+        };
+
+        return () => {
+            pending = true;
+            if (!timerId) {
+                later();
+            }
+            return timerId;
+        };
+    }
+
+    function updateMapOrientation() {
+        const heading = userRotationHeading;
+        if (heading && userLocationMarker) {
+            userLocationMarker.setRotation(heading);
+
+            if (customFollowState === 'ACTIVE') {
+                map.jumpTo({bearing: heading}, {trackingMove: true});
+            }
+        }
+    }
+
+    function moveOnPositionUpdate(lng, lat) {
+        if (lng && lat) {
+            if (customFollowState === 'ACTIVE') {
+                map.jumpTo({center: [lng, lat]}, {trackingMove: true});
+            }
+            if (!userLocationMarker) {
+                const el = document.createElement('div');
+                el.className = 'custom-follow-icon';
+
+                userLocationMarker = new mapboxgl.Marker({
+                    element: el,
+                    // color: 'purple',
+                    rotationAlignment: 'map',
+                    pitchAlignment: 'map'
+                });
+            }
+            userLocationMarker.setLngLat([lng, lat]).addTo(map);
+            // userLocationMarker.setRotation(userRotationHeading);
+        } else {
+            userLocationMarker.remove();
+        }
+        
+    }
+
+    function setCustomFollowOff() {
+        navigator.geolocation.clearWatch(watchID);
+        window.removeEventListener('deviceorientation', this._onDeviceOrientation);
+        window.removeEventListener('deviceorientationabsolute', this._onDeviceOrientation);
+        toggleWakeLock(false);
+        userLocationMarker && userLocationMarker.remove();
+        setGeolocateControl(true);
+        customFollowState = 'OFF';
+        setTrackingText("Follow Location");
+    }
+
+    async function toggleWakeLock(shouldFollow) {
+        if (!!shouldFollow == !!wakeLock) {
+            // We are already in the desired state
+            console.log('already at correct wake lock status');
+            return;
+        }
+
+        if (!wakeLockSupported) {
+            onError("tried to get wakelock on unsupported device");
+            return;
+        }
+
+        // Try and start location tracking
+
+        if (!wakeLock) {
+            try {
+                wakeLock = await navigator.wakeLock.request("screen");
+                document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
+                console.log("got wake lock");
+            } catch (err) {
+                // The Wake Lock request has failed - usually system related, such as battery.
+                onError(`failed to get wake lock: ${err.name}, ${err.message}`);
+            }
+        } else {
+            wakeLock.release().then(() => {
+                wakeLock = null;
+                document.getElementById("no-lock-icon").style.color = 'white';
+                console.log("released wake lock");
+            })
+        }
+    }
+
+    function setTrackingText(text) {
+        document.getElementById('follow-location-text').textContent = text;
+    }
+
+    // If the wakelock is asked for, the user goes to another tab, then comes back, this will keep it active
+    document.addEventListener("visibilitychange", async () => {
+        if (wakeLock !== null && document.visibilityState === "visible") {
+            wakeLock = await navigator.wakeLock.request("screen");
+        }
+    });
+
+    function onException(message, exception) {
+        console.error(`[Triangle Bikeways] ${message} | ${exception && exception.message}`, exception);
+        sendErrorLog(message, exception);
+    }
+
+    function onError(message) {
+        console.error(`[Triangle Bikeways] ${message}`);
+        sendErrorLog(message, "N/A");
+    }
+
+    function getUserToken() {
+        let userToken = getCookie("mapUserToken");
+        if(!userToken) {
+            userToken = Math.floor(Math.random() * 10000000);
+            setCookie("mapUserToken",userToken,1000);
+        }
+        return userToken;
+    }
+
+    function sendInitializationLog() {
+        const data = {
+            level: "INFO",
+            message: 'User initialized the map page'
+        }
+        sendLog(data);
+    }
+
+    function sendErrorLog(message, exception) {
+        const data = {
+            level: "SEVERE",
+            message,
+            exceptionMessage: JSON.stringify(exception && exception.message),
+            exceptionStack: JSON.stringify(exception && exception.stack),
+        }
+
+        sendLog(data);
+    }
+
+    function sendLog(data) {
+        try {
+            data.userToken = getUserToken();
+            data.currentUrl = window.location.href;
+
+            const logUrl = `https://host1.rapidpossum.xyz:5080/api/trianglebikeways/map/_json`
+            fetch(logUrl, {
+                    method: 'POST',
+                    body: JSON.stringify([data]),
+                    headers: { 'Content-Type': 'application/json',
+                    'accept': 'application/json',
+                    "Authorization": "Basic YWRtaW5AanB0ZXN0LmNvbTpLcTlMd1o1OEJvQVh5ZDFl"
+                    },
+                }).catch(console.error);
+            
+            // TODO: Send to logs when we have a https server
+        } catch(e) {
+            console.error('Error sending logs', e);
+        }
+    }
+
+    function round(value, precision) {
+        var multiplier = Math.pow(10, precision || 0);
+        return Math.round(value * multiplier) / multiplier;
     }
 
     // Load the autocomplete functionality once the script loads

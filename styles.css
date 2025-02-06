@@ -38,6 +38,15 @@ body {
     padding: 0;
 }
 
+#routeDetails {
+    padding-top: 3px;
+}
+
+#routeDetails span {
+    color: white;
+    padding-left: 10px;
+}
+
 .search-box {
     width: 100%;
     margin-bottom: 10px;
@@ -417,6 +426,27 @@ Otherwise the parent z-index makes things difficult */
     font-size: 13px;
 }
 
+#follow-location {
+    left: 10px;
+    bottom: 30px;
+    position: absolute;
+    z-index: 5;
+    background-color: rgba(0, 0, 0, 0.411);
+    border-radius: 5px;
+    padding: 10px;
+    color: white;
+    font-size: large;
+    font-weight: 600;
+}
+
+#follow-location span {
+    vertical-align: middle;
+}
+
+#no-lock-icon {
+    color: rgba(255, 255, 255, 1);
+}
+
 .loader {
     background-color: #3498db;
     width: 220px;
@@ -441,6 +471,16 @@ Otherwise the parent z-index makes things difficult */
       top: 0px;
       display: none;
   }
+
+  .custom-follow-icon {
+    width: 0;
+	height: 0;
+	border-left: 20px solid transparent;
+	border-right: 20px solid transparent;
+	border-bottom: 50px solid #0eff06;
+  }
+
+
 
 /* Safari */
 @-webkit-keyframes movebar {
