@@ -64,13 +64,13 @@
             <button class="curr-location-nav search-btn" onclick="setNavOrigin(false)">
                 <i class="material-icons md-18 md-dark noselect">my_location</i>
               </button>
-              <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button>
+              <!-- <button class="clear-btn search-btn" onclick="clearInput('startSearchBox')">&times;</button> -->
           </span>
         </div>
         <div>
           <input class="search-box search-box-last" id="endSearchBox" type="text" placeholder="End Location" />
           <span class="bottom-search-buttons">
-            <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button>
+            <!-- <button class="clear-btn search-btn" onclick="clearInput('endSearchBox')">&times;</button> -->
             <button class="curr-location-nav search-btn" onclick="setNavOrigin(true)">
                 <i class="material-icons md-18 md-dark noselect">my_location</i>
             </button>
@@ -79,6 +79,7 @@
         <span id="routeDetails" style="display: none;">
             <span id="routeLength"></span>
             <span id="routeTime"></span>
+            <button class="clear-btn-separate" onclick="clearInput('startSearchBox');clearInput('endSearchBox');">Clear Route</button>
         </span>
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
