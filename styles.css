@@ -21,12 +21,8 @@ body {
     position: absolute;
     z-index: 2;
     width: 70%;
-    max-width: 200px;
-    background-color: #aaaaaa88;
-}
-
-#direction-search-container:focus-within {
     max-width: 400px;
+    background-color: #aaaaaa88;
 }
 
 #hide-search-section {
