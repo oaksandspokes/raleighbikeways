@@ -65,7 +65,6 @@ body {
     background: white;
     width: 24px;
     height: 24px;
-    visibility: hidden;
     cursor: pointer;
     border: none;
     position: absolute;
@@ -111,14 +110,6 @@ body {
 .bottom-search-buttons {
     top: 50px;
     position: absolute;
-}
-
-#direction-search-container:focus-within .clear-btn{
-    visibility: visible;
-}
-
-#direction-search-container:focus-within .curr-location-nav{
-    visibility: visible;
 }
 
 #show-directions-container {
